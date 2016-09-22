@@ -1,0 +1,320 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Jsonapi compliable by jsonapi-suite</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Jsonapi compliable</h1>
+        <p></p>
+
+        <p class="view"><a href="https://github.com/jsonapi-suite/jsonapi_compliable">View the Project on GitHub <small>jsonapi-suite/jsonapi_compliable</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/jsonapi-suite/jsonapi_compliable/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/jsonapi-suite/jsonapi_compliable/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/jsonapi-suite/jsonapi_compliable">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="overview" class="anchor" href="#overview" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Overview</h1>
+
+<p>This library provides a simple DSL for <a href="http://jsonapi.org">jsonapi.org-compliant</a> requests. Among other things, this will help you:</p>
+
+<ul>
+<li>Paginate</li>
+<li>Sort</li>
+<li>Filter</li>
+<li>Whitelist inclusion of related resources</li>
+<li>Deal with customizable fieldsets</li>
+<li>Guard certain behavior (based on the current user's role, for instance)</li>
+<li>Deserialize incoming payloads (including nested payloads)</li>
+</ul>
+
+<p>In other words, we provide much of the same behavior as the wonderful <a href="https://github.com/cerebris/jsonapi-resources">jsonapi-resources</a> gem, but with a more 'traditional Rails' approach built on top of the widely-used <a href="https://github.com/rails-api/active_model_serializers">active_model_serializers</a>.</p>
+
+<p>All with as little code as possible. Everything is customizable and no ActiveRecord is required (though it's a nice default).</p>
+
+<h3>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h3>
+
+<p>Add to your <code>Gemfile</code>:</p>
+
+<p><code>gem jsonapi_compliable</code></p>
+
+<p>And include the mixin in your controller:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">ApplicationController<span class="pl-e"> &lt; ActionController::Base</span></span>
+  <span class="pl-k">include</span> <span class="pl-c1">JsonapiCompliable</span>
+<span class="pl-k">end</span></pre></div>
+
+<h3>
+<a id="quickstart---paginationsortingsparse-fieldsets" class="anchor" href="#quickstart---paginationsortingsparse-fieldsets" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Quickstart - Pagination/Sorting/Sparse Fieldsets</h3>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PeopleController<span class="pl-e"> &lt; ApplicationController</span></span>
+  jsonapi { }
+
+  <span class="pl-k">def</span> <span class="pl-en">index</span>
+    people <span class="pl-k">=</span> <span class="pl-c1">People</span>.all
+    render_ams(people)
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>This API will now support the JSONAPI pagination and sorting parameters, in addition to sparse fieldsets. In other words, the following URLs work:</p>
+
+<pre><code>/people?page[number]=1&amp;page[size]=20
+/people?sort=name
+/people?sort=-name
+/people?fields[people]=name,updated_at
+</code></pre>
+
+<h3>
+<a id="filtering" class="anchor" href="#filtering" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Filtering</h3>
+
+<p>Add <code>allow_filter</code>:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PeopleController<span class="pl-e"> &lt; ApplicationController</span></span>
+  jsonapi <span class="pl-k">do</span>
+    allow_filter <span class="pl-c1">:name</span>
+  <span class="pl-k">end</span>
+
+  <span class="pl-c"># ... code ...</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>We now support <code>/people?filter[name]=Jane</code>. If a query comes in for a filter not allowed, <code>JsonapiCompliable::Errors::BadFilter</code> will be raised.</p>
+
+<p>The default behavior is to assume ActiveRecord's <code>.where(name: 'Jane')</code>. To customize:</p>
+
+<div class="highlight highlight-source-ruby"><pre>allow_filter <span class="pl-c1">:name_prefix</span> <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">value</span>|
+  scope.where([<span class="pl-s"><span class="pl-pds">"</span>name LIKE ?<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pse">#{</span><span class="pl-s1">value</span><span class="pl-pse"><span class="pl-s1">}</span></span>%<span class="pl-pds">"</span></span>])
+<span class="pl-k">end</span></pre></div>
+
+<p>Filters can be guarded:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PeopleController<span class="pl-e"> &lt; ApplicationController</span></span>
+  jsonapi <span class="pl-k">do</span>
+    allow_filter <span class="pl-c1">:name</span>, <span class="pl-c1">if:</span> <span class="pl-c1">:admin?</span>
+  <span class="pl-k">end</span>
+
+  <span class="pl-k">def</span> <span class="pl-en">admin?</span>
+    current_user.role <span class="pl-k">==</span> <span class="pl-c1">:admin</span>
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>The above will raise <code>JsonapiCompliable::Errors::BadFilter</code> if the user is not an admin.</p>
+
+<p>You can also use <code>default_filter</code>:</p>
+
+<div class="highlight highlight-source-ruby"><pre>jsonapi <span class="pl-k">do</span>
+  default_filter <span class="pl-c1">:private</span> <span class="pl-k">do </span>|<span class="pl-smi">scope</span>|
+    scope.where(<span class="pl-c1">private:</span> <span class="pl-c1">false</span>)
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>This filter can be overridden if there is a corresponding <code>allow_filter</code> and <code>filter[private]</code> is a query parameter.</p>
+
+<p>Filters can be aliased. Want the URL <code>/people?filter[name]</code> to query <code>full_name</code>? Try this:</p>
+
+<div class="highlight highlight-source-ruby"><pre>allow_filter <span class="pl-c1">:full_name</span>, <span class="pl-c1">aliases:</span> [<span class="pl-c1">:name</span>]</pre></div>
+
+<h3>
+<a id="includes-sideloading" class="anchor" href="#includes-sideloading" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Includes ("Sideloading")</h3>
+
+<div class="highlight highlight-source-ruby"><pre>jsonapi <span class="pl-k">do</span>
+  includes <span class="pl-c1">whitelist:</span> { <span class="pl-c1">index:</span> [<span class="pl-c1">:siblings</span>, {<span class="pl-c1">company:</span> <span class="pl-c1">:address</span>}] }
+<span class="pl-k">end</span></pre></div>
+
+<p>We'd now support the URL <code>?include=siblings,company.address</code>. Any <code>include</code> not whitelisted will be silently dropped. If you're using ActiveRecord, everything will be automatically eager loaded.</p>
+
+<h3>
+<a id="extra-fields" class="anchor" href="#extra-fields" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Extra Fields</h3>
+
+<p>This is not part of the base jsonapi spec, but it is compatible. Imagine you have a computationally-expensive field you only want rendered when explicitly requested by the user.</p>
+
+<p>Start by including <a href="https://bbgithub.dev.bloomberg.com/InfrastructureExperience/jsonapi_ams_extensions">jsonapi_ams_extensions</a> in your serializer and define the extra attribute:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PersonSerializer<span class="pl-e"> &lt; ActiveModel::Serializer</span></span>
+  <span class="pl-c"># You probably want this in an ApplicationSerializer</span>
+  <span class="pl-k">include</span> <span class="pl-c1">JsonapiAmsExtensions</span> 
+
+  <span class="pl-c"># extra_attribute knows to only include this when requested</span>
+  extra_attribute <span class="pl-c1">:net_worth</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>Then add to your controller <code>jsonapi</code> definition:</p>
+
+<div class="highlight highlight-source-ruby"><pre>jsonapi <span class="pl-k">do</span>
+  extra_field(<span class="pl-c1">people:</span> [<span class="pl-c1">:net_worth_in_bitcoins</span>])
+<span class="pl-k">end</span></pre></div>
+
+<p>This field will now only be rendered when requested with <code>/people?extra_fields=net_worth_in_bitcoins</code>.</p>
+
+<p>You can place a guard within your serializer, if needed:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PersonSerializer<span class="pl-e"> &lt; ApplicationSerializer</span></span>
+  extra_attribute <span class="pl-c1">:net_worth</span>
+
+  <span class="pl-c"># This method is generated for any extra_attribute</span>
+  <span class="pl-k">def</span> <span class="pl-en">allow_net_worth?</span>
+    <span class="pl-k">return</span> <span class="pl-c1">false</span> <span class="pl-k">unless</span> current_user.admin?
+    <span class="pl-k">super</span>
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>Finally, you may need to eager load some data in order to generate this attribute. To do this, pass a block to <code>extra_field</code> in your controller's <code>jsonapi</code> definition:</p>
+
+<div class="highlight highlight-source-ruby"><pre>extra_field(<span class="pl-c1">people:</span> [<span class="pl-c1">:net_worth_in_bitcoins</span>]) <span class="pl-k">do </span>|<span class="pl-smi">scope</span>|
+  scope.includes(<span class="pl-c1">:assets</span>)
+<span class="pl-k">end</span></pre></div>
+
+<h3>
+<a id="deserialization" class="anchor" href="#deserialization" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Deserialization</h3>
+
+<p>JSON API payloads for POST/PUT/PATCH can be a pain to deal with in Rails. Call <code>deserialize_jsonapi!</code> to get a Rails-friendly payload:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PostsController<span class="pl-e"> &lt; ApplicationController</span></span>
+  before_action <span class="pl-c1">:deserialize_jsonapi!</span>, <span class="pl-c1">only:</span> [<span class="pl-c1">:update</span>, <span class="pl-c1">:create</span>]
+<span class="pl-k">end</span></pre></div>
+
+<p>Would take this:</p>
+
+<div class="highlight highlight-source-ruby"><pre>  {
+    <span class="pl-c1">data:</span> {
+      <span class="pl-c1">type:</span> <span class="pl-s"><span class="pl-pds">'</span>posts<span class="pl-pds">'</span></span>,
+      <span class="pl-c1">attributes:</span> {
+        <span class="pl-c1">title:</span> <span class="pl-s"><span class="pl-pds">'</span>my post<span class="pl-pds">'</span></span>,
+      },
+      <span class="pl-c1">relationships:</span> {
+        <span class="pl-c1">comments:</span> {
+          <span class="pl-c1">data:</span> [
+            { <span class="pl-c1">type:</span> <span class="pl-s"><span class="pl-pds">'</span>comments<span class="pl-pds">'</span></span>, <span class="pl-c1">attributes:</span> { <span class="pl-c1">body:</span> <span class="pl-s"><span class="pl-pds">'</span>my comment<span class="pl-pds">'</span></span> } }
+          ]
+        }
+      }
+    }
+  }</pre></div>
+
+<p>And deserialize it to:</p>
+
+<div class="highlight highlight-source-ruby"><pre>  {
+    <span class="pl-c1">post:</span> {
+      <span class="pl-c1">title:</span> <span class="pl-s"><span class="pl-pds">'</span>my post<span class="pl-pds">'</span></span>,
+      <span class="pl-c1">comments_attributes:</span> [{
+        <span class="pl-c1">body:</span> <span class="pl-s"><span class="pl-pds">'</span>my comment<span class="pl-pds">'</span></span>
+      }]
+    }
+  }</pre></div>
+
+<p>This differs from other deserializers in that nested relationships are converted into an <code>accepts_nested_attributes_for</code>-friendly payload.</p>
+
+<p>You can still reference the original parameters with <code>raw_params</code>.</p>
+
+<h3>
+<a id="customizing" class="anchor" href="#customizing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Customizing</h3>
+
+<p>All of the macros in the <code>jsonapi</code> DSL can be customized with a block. Not using ActiveRecord? No problem - you can use your ORM's scoping mechanism, or simply use the DSL to build up a hash that can be passed to an ORM of your choice:</p>
+
+<div class="highlight highlight-source-ruby"><pre>jsonapi <span class="pl-k">do</span>
+  allow_filter <span class="pl-c1">:name</span> <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">value</span>|
+    scope[<span class="pl-c1">:conditions</span>] <span class="pl-k">||=</span> {}
+    scope[<span class="pl-c1">:conditions</span>].merge!(<span class="pl-c1">name:</span> value)
+  <span class="pl-k">end</span>
+
+  sort <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">att</span>, <span class="pl-smi">dir</span>|
+    scope.merge!(<span class="pl-c1">order:</span> { att =&gt; dir })
+  <span class="pl-k">end</span>
+
+  paginate <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">current_page</span>, <span class="pl-smi">per_page</span>|
+    offset <span class="pl-k">=</span> (current_page <span class="pl-k">-</span> <span class="pl-c1">1</span> ) <span class="pl-k">*</span> per_page
+    scope.merge!(<span class="pl-c1">limit:</span> per_page, <span class="pl-c1">offset:</span> offset)
+  <span class="pl-k">end</span>
+
+  includes <span class="pl-c1">whitelist:</span> <span class="pl-c1">:department</span> <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">includes</span>|
+    scope.merge!(<span class="pl-c1">include:</span> includes)
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span>
+
+<span class="pl-k">def</span> <span class="pl-en">index</span>
+  hash <span class="pl-k">=</span> jsonapi_scope({})
+  puts hash
+  <span class="pl-c"># {</span>
+  <span class="pl-c">#   order: { id: :asc },</span>
+  <span class="pl-c">#   limit: 20,</span>
+  <span class="pl-c">#   offset: 0,</span>
+  <span class="pl-c">#   conditions: { name: 'foo' },</span>
+  <span class="pl-c">#   include: :department</span>
+  <span class="pl-c"># }</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>And here’s an example using the elasticsearch gem <a href="http://richmolj.github.io/trample">trample</a>:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">EmployeesController<span class="pl-e"> &lt; ApplicationController</span></span>
+  jsonapi <span class="pl-k">do</span>
+    allow_filter <span class="pl-c1">:name</span> <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">value</span>|
+      scope.condition(<span class="pl-c1">:name</span>).eq(value)
+    <span class="pl-k">end</span>
+
+    allow_filter <span class="pl-c1">:name_prefix</span> <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">value</span>|
+      scope.condition(<span class="pl-c1">:name</span>).starts_with(value)
+    <span class="pl-k">end</span>
+
+    paginate <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">current_page</span>, <span class="pl-smi">per_page</span>|
+      scope.metadata.pagination.current_page <span class="pl-k">=</span> current_page
+      scope.metadata.pagination.per_page <span class="pl-k">=</span> per_page
+      scope
+    <span class="pl-k">end</span>
+
+    sort <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">att</span>, <span class="pl-smi">dir</span>|
+      scope.metadata.sort <span class="pl-k">=</span> [{<span class="pl-c1">att:</span> att, <span class="pl-c1">dir:</span> dir}]
+      scope
+    <span class="pl-k">end</span>
+
+    includes <span class="pl-c1">whitelist:</span> { <span class="pl-c1">index:</span> <span class="pl-c1">:pets</span> } <span class="pl-k">do </span>|<span class="pl-smi">scope</span>, <span class="pl-smi">includes</span>|
+      scope.metadata.records[<span class="pl-c1">:includes</span>] <span class="pl-k">=</span> includes
+      scope
+    <span class="pl-k">end</span>
+  <span class="pl-k">end</span>
+
+  <span class="pl-k">def</span> <span class="pl-en">index</span>
+    search <span class="pl-k">=</span> jsonapi_scope(<span class="pl-c1">Search</span>::<span class="pl-c1">Employee</span>.<span class="pl-k">new</span>)
+    search.query!
+
+    render_ams(search.records.to_a)
+  <span class="pl-k">end</span>
+<span class="pl-k">end</span></pre></div>
+
+<h3>
+<a id="render_ams-and-jsonapi_scope" class="anchor" href="#render_ams-and-jsonapi_scope" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>render_ams and jsonapi_scope</h3>
+
+<p>By default, <code>render_ams</code> will automatically scope the object you pass to it. Call <code>render_ams(object, scope: false)</code> to opt-out of this behavior.</p>
+
+<p>In addition, you may want to explicitly scope before <code>render_ams</code> to provide additional customization. The following is a typical <code>show</code> action:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">def</span> <span class="pl-en">show</span>
+  person <span class="pl-k">=</span> jsonapi_scope(<span class="pl-c1">Person</span>.all).find(params[<span class="pl-c1">:id</span>])
+  render_ams(person)
+<span class="pl-k">end</span></pre></div>
+
+<p>With this explicit scope, all the normal scoping rules are applied (as we need <code>include</code>, <code>fields</code>, etc), then chained with <code>find</code>. We can then pass the record directly to <code>render_ams</code> - it won't be scoped again.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/jsonapi-suite">jsonapi-suite</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
