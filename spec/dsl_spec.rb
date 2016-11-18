@@ -46,6 +46,12 @@ RSpec.describe JsonapiCompliable::DSL do
       expect(copy.pagination).to eq(instance.pagination)
       expect(copy.pagination.object_id).to_not eq(instance.pagination.object_id)
     end
+
+    it 'copies stats' do
+      instance.stats = { foo: 'bar' }
+      expect(copy.stats).to eq(foo: 'bar')
+      expect(copy.stats.object_id).to_not eq(instance.stats.object_id)
+    end
   end
 
   describe '#clear' do
@@ -54,6 +60,7 @@ RSpec.describe JsonapiCompliable::DSL do
       instance.filters = { foo: 'bar' }
       instance.default_filters = { foo: 'bar' }
       instance.extra_fields = { foo: 'bar' }
+      instance.stats = { foo: 'bar' }
       instance.sorting = 'a'
       instance.pagination = 'a'
     end
@@ -92,6 +99,12 @@ RSpec.describe JsonapiCompliable::DSL do
       expect {
         instance.clear!
       }.to change { instance.pagination }.to(nil)
+    end
+
+    it 'resets stats' do
+      expect {
+        instance.clear!
+      }.to change { instance.stats }.to({})
     end
   end
 end
