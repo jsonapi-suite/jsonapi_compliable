@@ -38,6 +38,7 @@
 <li>Sort</li>
 <li>Filter</li>
 <li>Whitelist inclusion of related resources</li>
+<li>Calculate stats (totals, averages, etc)</li>
 <li>Deal with customizable fieldsets</li>
 <li>Guard certain behavior (based on the current user's role, for instance)</li>
 <li>Deserialize incoming payloads (including nested payloads)</li>
@@ -177,6 +178,53 @@
 
 <div class="highlight highlight-source-ruby"><pre>extra_field(<span class="pl-c1">people:</span> [<span class="pl-c1">:net_worth_in_bitcoins</span>]) <span class="pl-k">do </span>|<span class="pl-smi">scope</span>|
   scope.includes(<span class="pl-c1">:assets</span>)
+<span class="pl-k">end</span></pre></div>
+
+<h3>
+<a id="stats" class="anchor" href="#stats" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Stats</h3>
+
+<p>Add <code>allow_stat</code>:</p>
+
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PeopleController<span class="pl-e"> &lt; ApplicationController</span></span>
+  jsonapi <span class="pl-k">do</span>
+    allow_stat <span class="pl-c1">:total</span>, [<span class="pl-c1">:count</span>]
+  <span class="pl-k">end</span>
+
+  <span class="pl-c"># ... code ...</span>
+<span class="pl-k">end</span></pre></div>
+
+<p>We now support <code>/people?stats[total]=count</code>. The <code>meta</code> section of the response would look like:</p>
+
+<div class="highlight highlight-source-ruby"><pre>{
+  <span class="pl-c1">meta:</span> {
+    <span class="pl-c1">stats:</span> {
+      <span class="pl-c1">total:</span> {
+        <span class="pl-c1">count:</span> <span class="pl-c1">100</span>
+      }
+    }
+  }
+}</pre></div>
+
+<p>Stats run against the normal scope, sans pagination. So if we added <code>&amp;filter[name_prefix]=a</code>, we would get the total count of all people with name starting with 'a'.</p>
+
+<p>The above uses a default calculation function, <code>count</code>. Other default calculations are also supported:</p>
+
+<div class="highlight highlight-source-ruby"><pre>allow_stat <span class="pl-c1">cost:</span> [<span class="pl-c1">:sum</span>, <span class="pl-c1">:average</span>, <span class="pl-c1">:maximum</span>, <span class="pl-c1">:minimum</span>]</pre></div>
+
+<p>Each calculation can be customized (for instance, if you are not using ActiveRecord):</p>
+
+<div class="highlight highlight-source-ruby"><pre>allow_stat <span class="pl-c1">:cost</span> <span class="pl-k">do</span>
+  <span class="pl-c"># default behavior, equivalent to allow_stat cost: [:count]</span>
+  sum { |<span class="pl-smi">scope</span>, <span class="pl-smi">attr</span>| scope.count }
+
+  <span class="pl-c"># or if 'scope' is an array in this case</span>
+  sum { |<span class="pl-smi">scope</span>, <span class="pl-smi">attr</span>| scope.sum { |<span class="pl-smi">item</span>| item.cost } }
+<span class="pl-k">end</span></pre></div>
+
+<p>Finally, arbitrary statistics can also be added:</p>
+
+<div class="highlight highlight-source-ruby"><pre>allow_stat <span class="pl-c1">:cost</span> <span class="pl-k">do</span>
+  standard_deviation { |<span class="pl-smi">scope</span>, <span class="pl-smi">attr</span>| ... }
 <span class="pl-k">end</span></pre></div>
 
 <h3>
