@@ -207,7 +207,7 @@
 
 <p>Stats run against the normal scope, sans pagination. So if we added <code>&amp;filter[name_prefix]=a</code>, we would get the total count of all people with name starting with 'a'.</p>
 
-<p>The above uses a default calculation function, <code>count</code>. Other default calculations are also supported:</p>
+<p>The above uses a default calculation function, <code>count</code>, which will work out-of-the-box with <code>ActiveRecord</code>. Other default calculations are also supported:</p>
 
 <div class="highlight highlight-source-ruby"><pre>allow_stat <span class="pl-c1">cost:</span> [<span class="pl-c1">:sum</span>, <span class="pl-c1">:average</span>, <span class="pl-c1">:maximum</span>, <span class="pl-c1">:minimum</span>]</pre></div>
 
