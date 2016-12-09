@@ -44,7 +44,7 @@
 <li>Deserialize incoming payloads (including nested payloads)</li>
 </ul>
 
-<p>In other words, we provide much of the same behavior as the wonderful <a href="https://github.com/cerebris/jsonapi-resources">jsonapi-resources</a> gem, but with a more 'traditional Rails' approach built on top of the widely-used <a href="https://github.com/rails-api/active_model_serializers">active_model_serializers</a>.</p>
+<p>In other words, we provide much of the same behavior as the wonderful <a href="https://github.com/cerebris/jsonapi-resources">jsonapi-resources</a> gem, but with a more 'traditional Rails' approach built on top of the mighty <a href="jsonapi-rb.org">jsonapi-rb</a>, a serialization layer similar to ActiveModelSerializers but tuned specifically to JSONAPI.</p>
 
 <p>All with as little code as possible. Everything is customizable and no ActiveRecord is required (though it's a nice default).</p>
 
@@ -69,7 +69,7 @@
 
   <span class="pl-k">def</span> <span class="pl-en">index</span>
     people <span class="pl-k">=</span> <span class="pl-c1">People</span>.all
-    render_ams(people)
+    render_jsonapi(people)
   <span class="pl-k">end</span>
 <span class="pl-k">end</span></pre></div>
 
@@ -144,12 +144,7 @@
 
 <p>This is not part of the base jsonapi spec, but it is compatible. Imagine you have a computationally-expensive field you only want rendered when explicitly requested by the user.</p>
 
-<p>Start by including <a href="https://bbgithub.dev.bloomberg.com/InfrastructureExperience/jsonapi_ams_extensions">jsonapi_ams_extensions</a> in your serializer and define the extra attribute:</p>
-
-<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PersonSerializer<span class="pl-e"> &lt; ActiveModel::Serializer</span></span>
-  <span class="pl-c"># You probably want this in an ApplicationSerializer</span>
-  <span class="pl-k">include</span> <span class="pl-c1">JsonapiAmsExtensions</span> 
-
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">SerializablePerson<span class="pl-e"> &lt; JSONAPI::Serializable::Resource</span></span>
   <span class="pl-c"># extra_attribute knows to only include this when requested</span>
   extra_attribute <span class="pl-c1">:net_worth</span>
 <span class="pl-k">end</span></pre></div>
@@ -164,7 +159,7 @@
 
 <p>You can place a guard within your serializer, if needed:</p>
 
-<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">PersonSerializer<span class="pl-e"> &lt; ApplicationSerializer</span></span>
+<div class="highlight highlight-source-ruby"><pre><span class="pl-k">class</span> <span class="pl-en">SerializablePerson<span class="pl-e"> &lt; JSONAPI::Serializable::Resource</span></span>
   extra_attribute <span class="pl-c1">:net_worth</span>
 
   <span class="pl-c"># This method is generated for any extra_attribute</span>
@@ -339,23 +334,23 @@
     search <span class="pl-k">=</span> jsonapi_scope(<span class="pl-c1">Search</span>::<span class="pl-c1">Employee</span>.<span class="pl-k">new</span>)
     search.query!
 
-    render_ams(search.records.to_a)
+    render_jsonapi(search.records.to_a)
   <span class="pl-k">end</span>
 <span class="pl-k">end</span></pre></div>
 
 <h3>
-<a id="render_ams-and-jsonapi_scope" class="anchor" href="#render_ams-and-jsonapi_scope" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>render_ams and jsonapi_scope</h3>
+<a id="render_jsonapi-and-jsonapi_scope" class="anchor" href="#render_jsonapi-and-jsonapi_scope" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>render_jsonapi and jsonapi_scope</h3>
 
-<p>By default, <code>render_ams</code> will automatically scope the object you pass to it. Call <code>render_ams(object, scope: false)</code> to opt-out of this behavior.</p>
+<p>By default, <code>render_jsonapi</code> will automatically scope the object you pass to it. Call <code>render_jsonapi(object, scope: false)</code> to opt-out of this behavior.</p>
 
-<p>In addition, you may want to explicitly scope before <code>render_ams</code> to provide additional customization. The following is a typical <code>show</code> action:</p>
+<p>In addition, you may want to explicitly scope before <code>render_jsonapi</code> to provide additional customization. The following is a typical <code>show</code> action:</p>
 
 <div class="highlight highlight-source-ruby"><pre><span class="pl-k">def</span> <span class="pl-en">show</span>
   person <span class="pl-k">=</span> jsonapi_scope(<span class="pl-c1">Person</span>.all).find(params[<span class="pl-c1">:id</span>])
-  render_ams(person)
+  render_jsonapi(person)
 <span class="pl-k">end</span></pre></div>
 
-<p>With this explicit scope, all the normal scoping rules are applied (as we need <code>include</code>, <code>fields</code>, etc), then chained with <code>find</code>. We can then pass the record directly to <code>render_ams</code> - it won't be scoped again.</p>
+<p>With this explicit scope, all the normal scoping rules are applied (as we need <code>include</code>, <code>fields</code>, etc), then chained with <code>find</code>. We can then pass the record directly to <code>render_jsonapi</code> - it won't be scoped again.</p>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/jsonapi-suite">jsonapi-suite</a></p>
