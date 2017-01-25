@@ -25,6 +25,8 @@ module JsonapiCompliable
       'id'
     end
 
+    # TODO: return a JsonapiScope object that has a resolve method
+    # This way we can run the sideloads after resolution
     def jsonapi_scope(scope,
                       filter: true,
                       includes: true,
@@ -34,12 +36,12 @@ module JsonapiCompliable
       scope = JsonapiCompliable::Scope::DefaultFilter.new(self, scope).apply
       scope = JsonapiCompliable::Scope::Filter.new(self, scope).apply if filter
       scope = JsonapiCompliable::Scope::ExtraFields.new(self, scope).apply if extra_fields
-      scope = JsonapiCompliable::Scope::Sideload.new(self, scope).apply if includes
       scope = JsonapiCompliable::Scope::Sort.new(self, scope).apply if sort
       # This is set before pagination so it can be re-used for stats
       @_jsonapi_scope = scope
       scope = JsonapiCompliable::Scope::Paginate.new(self, scope).apply if paginate
-      scope
+
+      JsonapiCompliable::Scopeable.new(scope, self)
     end
 
     def reset_scope_flag
@@ -52,10 +54,15 @@ module JsonapiCompliable
     end
 
     def render_jsonapi(scope, opts = {})
-      scoped = Util::Scoping.apply?(self, scope, opts.delete(:scope)) ? jsonapi_scope(scope) : scope
+      scoped = if Util::Scoping.apply?(self, scope, opts.delete(:scope))
+                 jsonapi_scope(scope).resolve
+               else
+                 scope
+               end
+
       options = default_jsonapi_render_options
-      options[:include] = forced_includes || Util::IncludeParams.scrub(self)
-      options[:jsonapi] = JsonapiCompliable::Util::Pagination.zero?(params) ? [] : scoped
+      options[:include] = forced_includes || Util::IncludeParams.scrub(self, true)
+      options[:jsonapi] = scoped
       options[:fields] = Util::FieldParams.fieldset(params, :fields) if params[:fields]
       options[:meta] ||= {}
       options.merge!(opts)

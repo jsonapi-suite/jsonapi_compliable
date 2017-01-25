@@ -48,18 +48,14 @@ RSpec.describe 'sorting', type: :controller do
         controller.class_eval do
           jsonapi do
             sort do |scope, att, dir|
-              scope.special_sort(att, dir)
+              raise("custom sort #{att} #{dir}")
             end
           end
         end
       end
 
       it 'uses the custom sort function' do
-        scope = double(is_a?: true).as_null_object
-        expect(Author).to receive(:all) { scope }
-        expect(scope).to receive(:special_sort)
-          .with(:first_name, :asc).and_return(scope)
-        get :index, params: { sort: sort_param }
+        expect { subject }.to raise_error('custom sort first_name asc')
       end
     end
   end

@@ -9,3 +9,6 @@
 /tmp/
 .byebug_history
 spec/dummy/log/*
+*.swo
+*.swp
+*.swn

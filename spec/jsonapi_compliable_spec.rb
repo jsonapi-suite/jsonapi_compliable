@@ -66,7 +66,7 @@ RSpec.describe JsonapiCompliable, type: :controller do
       before do
         controller.class_eval do
           def index
-            people = jsonapi_scope(Author.all).to_a
+            people = jsonapi_scope(Author.all).resolve
             render_jsonapi(people)
           end
         end

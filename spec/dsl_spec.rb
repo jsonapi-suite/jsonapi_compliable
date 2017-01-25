@@ -56,7 +56,7 @@ RSpec.describe JsonapiCompliable::DSL do
 
   describe '#clear' do
     before do
-      instance.sideloads = { foo: 'bar' }
+      instance.sideloads = 'foo'
       instance.filters = { foo: 'bar' }
       instance.default_filters = { foo: 'bar' }
       instance.extra_fields = { foo: 'bar' }
@@ -68,7 +68,7 @@ RSpec.describe JsonapiCompliable::DSL do
     it 'resets sideloads' do
       expect {
         instance.clear!
-      }.to change { instance.sideloads }.to({})
+      }.to change { instance.sideloads }.to(nil)
     end
 
     it 'resets filters' do

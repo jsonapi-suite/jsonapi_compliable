@@ -7,11 +7,13 @@ require 'kaminari'
 require 'active_record'
 require 'action_controller'
 
-require File.expand_path(File.join(File.dirname(__FILE__), "./support/basic_rails_app"))
+Dir[File.expand_path(File.join(File.dirname(__FILE__),'support','**','*.rb'))].each {|f| require f}
 require 'rspec/rails'
 require 'database_cleaner'
 
+require 'pry'
 require 'jsonapi_compliable'
+
 
 ::Rails.application = BasicRailsApp.generate
 
@@ -42,6 +44,20 @@ ActiveRecord::Schema.define(:version => 1) do
     t.timestamps
   end
 
+  create_table :author_hobbies do |t|
+    t.integer :author_id
+    t.integer :hobby_id
+  end
+
+  create_table :hobbies do |t|
+    t.string :name
+  end
+
+  create_table :bios do |t|
+    t.integer :author_id
+    t.string :description
+  end
+
   create_table :genres do |t|
     t.string :name
     t.timestamps
@@ -51,6 +67,7 @@ ActiveRecord::Schema.define(:version => 1) do
     t.string :title
     t.integer :genre_id
     t.integer :author_id
+    t.integer :sales
     t.timestamps
   end
 
@@ -76,9 +93,26 @@ end
 
 class Author < ApplicationRecord
   belongs_to :state
+  has_one :bio
   has_many :books
+  has_many :author_hobbies
+  has_many :hobbies, through: :author_hobbies
   accepts_nested_attributes_for :books
   accepts_nested_attributes_for :state
+end
+
+class Bio < ApplicationRecord
+  belongs_to :author
+end
+
+class AuthorHobby < ApplicationRecord
+  belongs_to :author
+  belongs_to :hobby
+end
+
+class Hobby < ApplicationRecord
+  has_many :author_hobbies
+  has_many :authors, through: :author_hobbies
 end
 
 class Genre < ApplicationRecord
@@ -99,6 +133,8 @@ class Book < ApplicationRecord
   accepts_nested_attributes_for :author
   accepts_nested_attributes_for :genre
   accepts_nested_attributes_for :tags
+
+  scope :bestseller, -> { where('sales >= 50') }
 end
 
 class SerializableAbstract < JSONAPI::Serializable::Resource
@@ -110,8 +146,22 @@ class SerializableAuthor < SerializableAbstract
   attribute :first_name
   attribute :last_name
 
+  has_one :bio
   belongs_to :state
   has_many :books
+  has_many :hobbies
+end
+
+class SerializableHobby < SerializableAbstract
+  type 'hobbies'
+
+  attribute :name
+end
+
+class SerializableBio < SerializableAbstract
+  type 'bios'
+
+  attribute :description
 end
 
 class SerializableState < SerializableAbstract

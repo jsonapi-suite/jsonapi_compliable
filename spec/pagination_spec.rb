@@ -44,18 +44,16 @@ RSpec.describe 'pagination', type: :controller do
       controller.class_eval do
         jsonapi do
           paginate do |scope, page, per_page|
-            scope.special_pagination(page, per_page)
+            raise("custom pagination #{page} #{per_page}")
           end
         end
       end
     end
 
     it 'uses the custom pagination function' do
-      scope = double(is_a?: true).as_null_object
-      expect(Author).to receive(:all) { scope }
-      expect(scope).to receive(:special_pagination)
-        .with(3, 2).and_return(scope)
-      get :index, params: { page: { number: 3, size: 2 } }
+      expect {
+        get :index, params: { page: { number: 3, size: 2 } }
+      }.to raise_error('custom pagination 3 2')
     end
   end
 end

@@ -1,74 +1,104 @@
 require 'spec_helper'
 
-RSpec.describe 'sideloading', type: :controller do
+RSpec.describe 'sideloading manually', type: :controller do
+  include SideloadHelper
+  include_context "sideloading data"
+
   controller(ApplicationController) do
     jsonapi do
-      includes whitelist: { index: [{ books: :genre }, :state] }
-    end
+      includes do
+        allow_sideload :books, only: [:index] do
+          data do |authors|
+            Book.where(author_id: authors.map(&:id))
+          end
 
-    def index
-      render_jsonapi(Author.all)
-    end
-  end
+          assign do |authors, books|
+            authors.each do |author|
+              author.books = books.select { |b| b.author_id == author.id }
+            end
+          end
 
-  after do
-    controller.class_eval do
-      jsonapi do
-        includes whitelist: { index: [{ books: :genre }, :state] }
-      end
-    end
-  end
+          allow_sideload :genre do
+            data do |books|
+              Genre.where(id: books.map(&:genre_id))
+            end
 
-  let(:state) { State.create!(name: 'maine') }
-  let(:genre) { Genre.create!(name: 'horror') }
-  let(:book) { Book.create!(title: 'The Shining', genre: genre) }
+            assign do |books, genres|
+              books.each do |book|
+                book.genre = genres.find { |g| g.id == book.genre_id }
+              end
+            end
+          end
+        end
 
-  let!(:author) do
-    Author.create! \
-      first_name: 'Stephen',
-      last_name: 'King',
-      state: state,
-      books: [book]
-  end
+        allow_sideload :bio do
+          data do |authors|
+            Bio.where(author_id: authors.map(&:id))
+          end
 
-  it 'sideloads the ?include parameter' do
-    get :index, params: { include: 'books,state' }
-    expect(json_included_types).to match_array(%w(states books))
-  end
+          assign do |authors, bios|
+            authors.each do |author|
+              author.bio = bios.find { |b| b.author_id == author.id }
+            end
+          end
+        end
 
-  context 'when a custom include function is supplied' do
-    before do
-      controller.class_eval do
-        jsonapi do
-          includes whitelist: { index: { books: :genre } } do |scope, includes|
-            scope.special_include(includes)
+        allow_sideload :state do
+          data do |authors|
+            State.where(id: authors.map(&:state_id))
+          end
+
+          assign do |authors, states|
+            authors.each do |author|
+              author.state = states.find { |s| author.state_id == s.id }
+            end
+          end
+        end
+
+        allow_sideload :hobbies do
+          data do |authors|
+            Hobby.joins(:author_hobbies).where(author_hobbies: { author_id: authors.map(&:id) })
+          end
+
+          assign do |authors, hobbies|
+            authors.each do |author|
+              author.hobbies = hobbies.select { |h| h.author_hobbies.any? { |ah| ah.author_id == author.id } }
+            end
+          end
+        end
+
+        # TODO - assignment vs render option
+        # Maybe just render_as? bc option to render
+        allow_sideload :bestsellers, as: :books do
+          data do |authors|
+            Book.bestseller.where(author_id: authors.map(&:id))
+          end
+
+          assign do |authors, bestsellers|
+            authors.each do |author|
+              author.books = bestsellers.select { |b| b.author_id == author.id }
+            end
           end
         end
       end
     end
 
-    it 'uses the custom include function' do
-      scope = Author.all
-      allow(Author).to receive(:all) { scope }
+    def index
+      render_jsonapi(Author.all)
+    end
 
-      expect(scope).to receive(:special_include)
-        .with(books: { genre: {} }).and_return(scope)
-
-      get :index, params: { include: 'books.genre' }
+    def show
+      scope = jsonapi_scope(Author.where(id: params[:id]))
+      render_jsonapi(scope.resolve(false))
     end
   end
 
-  context 'when nested includes' do
-    it 'sideloads all levels of nesting' do
-      get :index, params: { include: 'books.genre,state' }
-      expect(json_included_types).to match_array(%w(states genres books))
-    end
-  end
+  include_examples "API sideloading"
 
-  context 'when the relation is not whitelisted' do
-    it 'silently disregards the relation' do
-      get :index, params: { include: 'foo' }
-      expect(json).to_not have_key('included')
+  context ':as' do
+    it 'renders to alternate key' do
+      get :index, params: { include: 'bestsellers' }
+      expect(json_included_types).to match_array(%w(books))
     end
   end
 end

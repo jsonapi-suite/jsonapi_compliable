@@ -3,6 +3,8 @@ require 'jsonapi/rails'
 require "jsonapi_compliable/version"
 require "jsonapi_compliable/errors"
 require "jsonapi_compliable/dsl"
+require "jsonapi_compliable/include_dsl"
+require "jsonapi_compliable/scopeable"
 require "jsonapi_compliable/scope/base"
 require "jsonapi_compliable/scope/sort"
 require "jsonapi_compliable/scope/paginate"

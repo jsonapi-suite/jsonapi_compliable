@@ -25,7 +25,7 @@ module JsonapiCompliable
     end
 
     def clear!
-      @sideloads = {}
+      @sideloads = nil
       @filters = {}
       @default_filters = {}
       @extra_fields = {}
@@ -34,13 +34,11 @@ module JsonapiCompliable
       @pagination = nil
     end
 
-    def includes(whitelist: nil, &blk)
-      whitelist = JSONAPI::IncludeDirective.new(whitelist) if whitelist
+    def includes(&blk)
+      include_dsl = IncludeDSL.new
+      include_dsl.instance_eval(&blk)
 
-      @sideloads = {
-        whitelist: whitelist,
-        custom_scope: blk
-      }
+      @sideloads = include_dsl
     end
 
     def allow_filter(name, *args, &blk)
