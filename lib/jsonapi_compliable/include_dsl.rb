@@ -13,6 +13,36 @@ class IncludeDSL
     @_assign = blk
   end
 
+  def scope(&blk)
+    if block_given?
+      @scope = scope
+    else
+      @scope
+    end
+  end
+
+  def group(type, &blk)
+    @groups ||= {}
+    @groups[type] = blk
+  end
+
+  def group_by(grouper, &blk)
+    data do |parents|
+      groups = parents.group_by(&grouper)
+
+      groups.each_pair do |type, members|
+        include_dsl = IncludeDSL.new
+        include_dsl.instance_eval(&@groups[type])
+        results = include_dsl._data.call(members)
+        include_dsl._assign.call(members, results)
+      end
+    end
+
+    assign { }
+
+    instance_eval(&blk)
+  end
+
   def allowed?(action_name)
     @only.nil? || @only.include?(action_name)
   end
@@ -29,10 +59,10 @@ class IncludeDSL
 
   # Todo adapter, non-AR
   # NOTE - not reflecting b/c may be array of STI
-  def has_many(association_name, scope:, foreign_key:, primary_key: :id, as: nil, &blk)
+  def has_many(association_name, scope:, only: nil, foreign_key:, primary_key: :id, as: nil, &blk)
     as ||= association_name
 
-    allow_sideload association_name, array: true, as: as do
+    allow_sideload association_name, only: only, array: true, as: as do
       data do |parents|
         parent_ids = parents.map { |p| p.send(primary_key) }
         scope.call.where(foreign_key => parent_ids)
@@ -40,8 +70,11 @@ class IncludeDSL
 
       assign do |parents, children|
         parents.each do |parent|
+          parent.association(as).loaded!
           relevant_children = children.select { |c| c.send(foreign_key) == parent.send(primary_key) }
-          parent.send(:"#{as}=", relevant_children)
+          relevant_children.each do |c|
+            parent.association(as).add_to_target(c, :skip_callbacks)
+          end
         end
       end
 
@@ -70,6 +103,28 @@ class IncludeDSL
     end
   end
 
+  def polymorphic(association_name, group_by:, scopes:, primary_key: :id, foreign_key:)
+    as ||= association_name
+
+    allow_sideload association_name do
+      self.group_by(group_by) do
+        scopes.each_pair do |type, prc|
+          group type do
+            data do |parents|
+              prc.call.where(primary_key => parents.map { |p| p.send(foreign_key) })
+            end
+
+            assign do |parents, children|
+              parents.each do |parent|
+                parent.send(:"#{as}=", children.find { |c| c.send(primary_key) == parent.send(foreign_key) })
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
   # TODO - 'through' option is AR-specific
   # difficult to do non-ar maybe
   # maybe pass ids to scope
@@ -85,8 +140,11 @@ class IncludeDSL
 
       assign do |parents, children|
         parents.each do |parent|
+          parent.association(as).loaded!
           relevant_children = children.select { |c| c.send(through).any? { |ct| ct.send(fk) == parent.send(primary_key) } }
-          parent.send(:"#{as}=", relevant_children)
+          relevant_children.each do |c|
+            parent.association(as).add_to_target(c, :skip_callbacks)
+          end
         end
       end
 
@@ -94,10 +152,10 @@ class IncludeDSL
     end
   end
 
-  def has_one(association_name, scope:, foreign_key:, primary_key: :id, as: nil, array: false, &blk)
+  def has_one(association_name, scope:, foreign_key:, primary_key: :id, only: nil, as: nil, array: false, &blk)
     as ||= association_name
 
-    allow_sideload association_name, as: as, array: array do
+    allow_sideload association_name, only: only, as: as, array: array do
       data do |parents|
         parent_ids = parents.map { |p| p.send(primary_key) }
         scope.call.where(foreign_key => parent_ids)
@@ -105,9 +163,14 @@ class IncludeDSL
 
       assign do |parents, children|
         parents.each do |parent|
+          parent.association(as).loaded!
           relevant_child = children.find { |c| c.send(foreign_key) == parent.send(primary_key) }
-          relevant_child = Array(relevant_child) if array
-          parent.send(:"#{as}=", relevant_child)
+          next unless relevant_child
+          if array
+            parent.association(as).add_to_target(relevant_child, :skip_callbacks)
+          else
+            parent.send(:"#{as}=", relevant_child)
+          end
         end
       end
 
@@ -115,7 +178,6 @@ class IncludeDSL
     end
   end
 
-  # TODO - incorporate show/index
   def to_hash
     hash = {}
     @_includes.each_pair do |assn_name, dsl|
@@ -124,14 +186,20 @@ class IncludeDSL
     hash
   end
 
-  def load!(object, scrubbed_includes)
+  def load!(object, scrubbed_includes, params)
     @_includes.each_pair do |association_name, include_dsl|
       next unless scrubbed_includes.has_key?(association_name)
 
-      results = include_dsl._data.call(Array(object))
-      include_dsl.load!(Array(results), scrubbed_includes[association_name])
+      # Todo - instance eval so we get #scope?
+      scope = include_dsl._data.call(Array(object))
+      # in order to make this work, allow_sideload must call dsl
+      # 'scope' (the current 'data' block) is re-usable scope
+      # chain_to_scope(scope, params[include_dsl.name])
+      # ... or something ...
 
-      include_dsl._assign.call(Array(object), results)
+      include_dsl.load!(Array(scope), scrubbed_includes[association_name], params)
+
+      include_dsl._assign.call(Array(object), scope)
     end
   end
 end

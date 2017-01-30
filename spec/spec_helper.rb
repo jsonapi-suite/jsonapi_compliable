@@ -38,10 +38,20 @@ ActiveRecord::Base.raise_in_transactional_callbacks = true
 
 ActiveRecord::Schema.define(:version => 1) do
   create_table :authors do |t|
+    t.string :dwelling_type
+    t.integer :dwelling_id
     t.string :first_name
     t.string :last_name
     t.integer :state_id
     t.timestamps
+  end
+
+  create_table :houses do |t|
+    t.string :name
+  end
+
+  create_table :condos do |t|
+    t.string :name
   end
 
   create_table :author_hobbies do |t|
@@ -92,6 +102,7 @@ class State < ApplicationRecord
 end
 
 class Author < ApplicationRecord
+  belongs_to :dwelling, polymorphic: true
   belongs_to :state
   has_one :bio
   has_many :books
@@ -99,6 +110,18 @@ class Author < ApplicationRecord
   has_many :hobbies, through: :author_hobbies
   accepts_nested_attributes_for :books
   accepts_nested_attributes_for :state
+
+  attr_accessor :bestselling_book,
+    :special_state,
+    :serious_hobbies
+end
+
+class House < ApplicationRecord
+  has_one :author, as: :dwelling
+end
+
+class Condo < ApplicationRecord
+  has_one :author, as: :dwelling
 end
 
 class Bio < ApplicationRecord
@@ -147,9 +170,22 @@ class SerializableAuthor < SerializableAbstract
   attribute :last_name
 
   has_one :bio
+  belongs_to :dwelling
   belongs_to :state
   has_many :books
   has_many :hobbies
+end
+
+class SerializableHouse < SerializableAbstract
+  type 'houses'
+
+  attribute :name
+end
+
+class SerializableCondo < SerializableAbstract
+  type 'condos'
+
+  attribute :name
 end
 
 class SerializableHobby < SerializableAbstract

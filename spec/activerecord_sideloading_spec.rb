@@ -6,20 +6,7 @@ RSpec.describe 'sideloading via ActiveRecord', type: :controller do
 
   # Ensure we don't use default AR to fetch relations
   class AuthorNoRelations < Author
-    undef_method :books
-    undef_method :books=
-    undef_method :state
-    undef_method :state=
-    undef_method :hobbies
-    undef_method :hobbies=
-    undef_method :bio
-    undef_method :bio=
-
-    attr_accessor :books,
-      :state,
-      :hobbies,
-      :bio,
-      :bestselling_book,
+    attr_accessor :bestselling_book,
       :special_state,
       :serious_hobbies
   end
@@ -60,6 +47,14 @@ RSpec.describe 'sideloading via ActiveRecord', type: :controller do
           as: :hobbies
 
         has_one :bio, scope: -> { Bio.all }, foreign_key: :author_id
+
+        polymorphic :dwelling,
+          group_by: proc { |author| author.dwelling_type },
+          foreign_key: :dwelling_id,
+          scopes: {
+            'House' => -> { House.all },
+            'Condo' => -> { Condo.all }
+          }
       end
     end
 
@@ -70,7 +65,14 @@ RSpec.describe 'sideloading via ActiveRecord', type: :controller do
 
   include_examples "API sideloading"
 
-  context 'when include_as subrelation' do
+  context 'when filtering association' do
+    it 'filters the association correctly' do
+      get :index, params: { include: 'books', filter: { books: { id: better_seller.id } } }
+      expect(json_includes('books')[0]['id']).to eq(better_seller.id.to_s)
+    end
+  end
+
+  context 'when "as" subrelation' do
     context 'when has_one' do
       it 'sideloads the relevant subrelation to the correct key' do
         get :index, params: { include: 'bestselling_book' }

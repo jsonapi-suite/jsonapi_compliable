@@ -5,6 +5,7 @@ require "jsonapi_compliable/errors"
 require "jsonapi_compliable/dsl"
 require "jsonapi_compliable/include_dsl"
 require "jsonapi_compliable/scopeable"
+require "jsonapi_compliable/query"
 require "jsonapi_compliable/scope/base"
 require "jsonapi_compliable/scope/sort"
 require "jsonapi_compliable/scope/paginate"
@@ -31,5 +32,13 @@ module JsonapiCompliable
       include Base
       include Deserializable
     end
+  end
+
+  def self.query
+    Thread.current[:_jsonapi_query] || {}
+  end
+
+  def self.query=(val)
+    Thread.current[:_jsonapi_query] = {}
   end
 end

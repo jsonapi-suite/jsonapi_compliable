@@ -67,6 +67,35 @@ RSpec.describe 'sideloading manually', type: :controller do
           end
         end
 
+        # Todo polymorphic has_many vs belongs_to
+        allow_sideload :dwelling do
+          group_by proc { |author| author.dwelling_type } do
+            group 'House' do
+              data do |house_authors|
+                House.where(id: house_authors.map(&:dwelling_id))
+              end
+
+              assign do |house_authors, houses|
+                house_authors.each do |author|
+                  author.dwelling = houses.find { |h| h.id == author.dwelling_id }
+                end
+              end
+            end
+
+            group 'Condo' do
+              data do |condo_authors|
+                Condo.where(id: condo_authors.map(&:dwelling_id))
+              end
+
+              assign do |condo_authors, condos|
+                condo_authors.each do |author|
+                  author.dwelling = condos.find { |c| c.id == author.dwelling_id }
+                end
+              end
+            end
+          end
+        end
+
         # TODO - assignment vs render option
         # Maybe just render_as? bc option to render
         allow_sideload :bestsellers, as: :books do
@@ -89,11 +118,17 @@ RSpec.describe 'sideloading manually', type: :controller do
 
     def show
       scope = jsonapi_scope(Author.where(id: params[:id]))
-      render_jsonapi(scope.resolve(false))
+      render_jsonapi(scope.resolve.first)
     end
   end
 
   include_examples "API sideloading"
+
+  it 'works for polymorphic relationships' do
+    Author.create!(dwelling: Condo.create!(name: 'My Condo'))
+    get :index, params: { include: 'dwelling' }
+    expect(json_included_types).to match_array(%w(condos houses))
+  end
 
   context ':as' do
     it 'renders to alternate key' do

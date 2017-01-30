@@ -9,8 +9,10 @@ module JsonapiCompliable
       class_attribute :_jsonapi_compliable
       attr_reader :_jsonapi_scope
 
+      before_action :set_parameters
       before_action :parse_fieldsets!
       after_action :reset_scope_flag
+      after_action :clear_parameters
     end
 
     def default_page_number
@@ -22,7 +24,7 @@ module JsonapiCompliable
     end
 
     def default_sort
-      'id'
+      { id: :asc }
     end
 
     # TODO: return a JsonapiScope object that has a resolve method
@@ -33,15 +35,19 @@ module JsonapiCompliable
                       paginate: true,
                       extra_fields: true,
                       sort: true)
-      scope = JsonapiCompliable::Scope::DefaultFilter.new(self, scope).apply
-      scope = JsonapiCompliable::Scope::Filter.new(self, scope).apply if filter
-      scope = JsonapiCompliable::Scope::ExtraFields.new(self, scope).apply if extra_fields
-      scope = JsonapiCompliable::Scope::Sort.new(self, scope).apply if sort
-      # This is set before pagination so it can be re-used for stats
-      @_jsonapi_scope = scope
-      scope = JsonapiCompliable::Scope::Paginate.new(self, scope).apply if paginate
 
-      JsonapiCompliable::Scopeable.new(scope, self)
+      query_hash = Query.new(self).to_hash[:default]
+      JsonapiCompliable::Scopeable.build(scope, query_hash, _jsonapi_compliable)
+
+      #scope = JsonapiCompliable::Scope::DefaultFilter.new(self, query_hash, scope).apply
+      #scope = JsonapiCompliable::Scope::Filter.new(self, query_hash, scope).apply if filter
+      #scope = JsonapiCompliable::Scope::ExtraFields.new(self, query_hash, scope).apply if extra_fields
+      #scope = JsonapiCompliable::Scope::Sort.new(self, query_hash, scope).apply if sort
+      ## This is set before pagination so it can be re-used for stats
+      #@_jsonapi_scope = scope
+      #scope = JsonapiCompliable::Scope::Paginate.new(self, query_hash, scope).apply if paginate
+
+      #JsonapiCompliable::Scopeable.new(scope, query_hash, self)
     end
 
     def reset_scope_flag
@@ -79,6 +85,14 @@ module JsonapiCompliable
     def default_jsonapi_render_options
       {}.tap do |options|
       end
+    end
+
+    def set_parameters
+      JsonapiCompliable.query = Query.new(self).to_hash
+    end
+
+    def clear_parameters
+      JsonapiCompliable.query = nil
     end
 
     # TODO: This nastiness likely goes away once jsonapi standardizes

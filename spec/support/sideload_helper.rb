@@ -7,11 +7,13 @@ module SideloadHelper
     let(:bio)           { Bio.new(description: 'Horror dude') }
     let(:better_seller) { Book.new(title: 'It', genre: genre, sales: 50) }
     let(:bestseller)    { Book.new(title: 'The Stand', genre: genre, sales: 100) }
+    let(:house)         { House.new(name: 'Cozy House') }
 
     let!(:author) do
       Author.create! \
         first_name: 'Stephen',
         last_name: 'King',
+        dwelling: house,
         state: state,
         books: [book, better_seller, bestseller],
         hobbies: [hobby],
@@ -40,6 +42,12 @@ module SideloadHelper
     it 'works for many_to_many' do
       get :index, params: { include: 'hobbies' }
       expect(json_included_types).to match_array(%w(hobbies))
+    end
+
+    it 'works for polymorphic relationships' do
+      Author.create!(dwelling: Condo.create!(name: 'My Condo'))
+      get :index, params: { include: 'dwelling' }
+      expect(json_included_types).to match_array(%w(condos houses))
     end
 
     context 'when no include parameter' do

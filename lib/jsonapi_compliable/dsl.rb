@@ -24,6 +24,19 @@ module JsonapiCompliable
       instance
     end
 
+    def association_names
+      @association_names ||= _keys(sideloads.to_hash)
+    end
+
+    def _keys(hash)
+      keys = []
+      hash.each_pair do |key, value|
+        keys << key
+        keys |= _keys(value)
+      end
+      keys
+    end
+
     def clear!
       @sideloads = nil
       @filters = {}

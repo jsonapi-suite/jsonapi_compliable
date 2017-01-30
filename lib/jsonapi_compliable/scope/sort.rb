@@ -15,15 +15,16 @@ module JsonapiCompliable
     private
 
     def sort_param
-      @sort_param ||= (params[:sort] || @controller.default_sort)
+      @sort_param ||= params[:sort][0] || dsl.default_sort
     end
 
+    # TODO multisort
     def direction
-      sort_param.starts_with?('-') ? :desc : :asc
+      sort_param.values.last
     end
 
     def attribute
-      sort_param.dup.sub('-', '').to_sym
+      sort_param.keys.first
     end
   end
 end
