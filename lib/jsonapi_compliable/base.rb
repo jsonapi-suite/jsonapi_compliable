@@ -50,7 +50,7 @@ module JsonapiCompliable
     end
 
     def render_jsonapi(scope, opts = {})
-      scope = jsonapi_scope(scope) unless opts[:scope] == false || scope.is_a?(JsonapiCompliable::Scope)
+      scope = jsonapi_scope(scope, opts) unless opts[:scope] == false || scope.is_a?(JsonapiCompliable::Scope)
       opts  = default_jsonapi_render_options.merge(opts)
       opts  = Util::RenderOptions.generate(scope, query_hash, opts)
       opts[:expose][:context] = self
