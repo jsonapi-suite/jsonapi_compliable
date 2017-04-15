@@ -104,7 +104,7 @@ module JsonapiCompliable
     def nested_sideload_hash(sideload, levels_deep)
       {}.tap do |hash|
         if sideloading = sideload.resource_class.sideloading
-          hash.merge!(sideloading.to_hash(levels_deep)[:base])
+          hash.merge!(sideloading.to_hash(levels_deep)[:base] || {})
         end
       end
     end
