@@ -216,7 +216,7 @@ module JsonapiCompliable
     # @option opts [Boolean] :scope Default: true. Should we call #jsonapi_scope on this object?
     # @see #jsonapi_scope
     def render_jsonapi(scope, opts = {})
-      scope = jsonapi_scope(scope) unless opts[:scope] == false || scope.is_a?(JsonapiCompliable::Scope)
+      scope = jsonapi_scope(scope, opts) unless opts[:scope] == false || scope.is_a?(JsonapiCompliable::Scope)
       opts  = default_jsonapi_render_options.merge(opts)
       opts  = Util::RenderOptions.generate(scope, query_hash, opts)
       opts[:expose][:context] = self
