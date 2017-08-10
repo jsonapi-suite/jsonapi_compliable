@@ -64,7 +64,7 @@ module JsonapiCompliable
     #
     # @return [Resource] the configured Resource for this controller
     def jsonapi_resource
-      @jsonapi_resource ||= self.class._jsonapi_compliable.new
+      @jsonapi_resource ||= self.class._jsonapi_compliable ? self.class._jsonapi_compliable.new : JsonapiCompliable::Resource.new
     end
 
     # Instantiates the relevant Query object
