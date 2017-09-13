@@ -243,7 +243,7 @@ module JsonapiCompliable
     private
 
     def force_includes?
-      not deserialized_params.data.nil?
+      not deserialized_params.data.empty?
     end
 
     def perform_render_jsonapi(opts)

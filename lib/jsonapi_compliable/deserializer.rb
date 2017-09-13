@@ -55,7 +55,7 @@ class JsonapiCompliable::Deserializer
 
   # @return [Hash] the raw :data value of the payload
   def data
-    @payload[:data]
+    @payload[:data] || {}
   end
 
   # @return [String] the raw :id value of the payload

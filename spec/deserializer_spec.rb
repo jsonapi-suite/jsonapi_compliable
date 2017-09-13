@@ -12,6 +12,28 @@ RSpec.describe JsonapiCompliable::Deserializer do
 
   let(:instance) { described_class.new(payload, {}) }
 
+  describe '#data' do
+    subject { instance.data }
+
+    context 'when data is present' do
+      it 'returns the proper sub-object' do
+        expect(subject).to eq(payload[:data])
+      end
+    end
+
+    context 'when data is absent' do
+      let(:payload) do
+        {
+            foo: 'bar'
+        }
+      end
+
+      it 'returns an empty hash' do
+        expect(subject).to eq({})
+      end
+    end
+  end
+
   describe '#attributes' do
     subject { instance.attributes }
 
@@ -29,6 +51,18 @@ RSpec.describe JsonapiCompliable::Deserializer do
 
       it 'merges id into attributes' do
         expect(subject[:id]).to eq('123')
+      end
+    end
+
+    context 'when data is absent' do
+      let(:payload) do
+        {
+            foo: 'bar'
+        }
+      end
+
+      it 'returns an empty hash' do
+        expect(subject).to eq({})
       end
     end
   end
