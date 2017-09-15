@@ -117,7 +117,7 @@ module JsonapiCompliable
     # @see Deserializer#initialize
     # @return [Deserializer]
     def deserialized_params
-      @deserialized_params ||= JsonapiCompliable::Deserializer.new(params, request.env)
+      @deserialized_params ||= JsonapiCompliable::Deserializer.new(params, request.method, request.env)
     end
 
     # Create the resource model and process all nested relationships via the

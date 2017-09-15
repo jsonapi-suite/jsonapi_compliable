@@ -46,16 +46,22 @@
 #   { type: 'authors', method: :create, temp_id: 'abc123' }
 class JsonapiCompliable::Deserializer
   # @param payload [Hash] The incoming payload with symbolized keys
+  # @param method [String] The method that the request was sent with
   # @param env [Hash] the Rack env (e.g. +request.env+).
-  def initialize(payload, env)
+  def initialize(payload, method, env)
     @payload = payload
     @payload = @payload[:_jsonapi] if @payload.has_key?(:_jsonapi)
+    @method = method
     @env = env
   end
 
   # @return [Hash] the raw :data value of the payload
   def data
-    @payload[:data] || {}
+    if ["GET", "DELETE"].include?(@method)
+      @payload[:data] || {}
+    else
+      @payload[:data] or raise JsonapiCompliable::Errors::BadRequest.new("No data payload present")
+    end
   end
 
   # @return [String] the raw :id value of the payload

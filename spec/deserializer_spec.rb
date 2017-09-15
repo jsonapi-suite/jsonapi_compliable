@@ -10,7 +10,7 @@ RSpec.describe JsonapiCompliable::Deserializer do
     }
   end
 
-  let(:instance) { described_class.new(payload, {}) }
+  let(:instance) { described_class.new(payload, "GET", {}) }
 
   describe '#data' do
     subject { instance.data }
