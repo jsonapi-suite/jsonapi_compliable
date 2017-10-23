@@ -1,9 +1,10 @@
 module JsonapiCompliable
   module Errors
-    class BadFilter < StandardError; end
-    class ValidationError < StandardError; end
+    class ValidationError < RuntimeError; end
+    class BadRequest < RuntimeError; end
+    class BadFilter < BadRequest; end
 
-    class UnsupportedPageSize < StandardError
+    class UnsupportedPageSize < BadRequest
       def initialize(size, max)
         @size, @max = size, max
       end
@@ -13,7 +14,7 @@ module JsonapiCompliable
       end
     end
 
-    class StatNotFound < StandardError
+    class StatNotFound < BadRequest
       def initialize(attribute, calculation)
         @attribute = attribute
         @calculation = calculation
