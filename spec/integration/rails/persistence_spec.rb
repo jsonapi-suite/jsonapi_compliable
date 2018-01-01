@@ -176,7 +176,7 @@ if ENV["APPRAISAL_INITIALIZED"]
                 type: 'salaries',
                 attributes: {
                   base_rate: 15.00,
-                  over_time_rate: 30.00
+                  overtime_rate: 30.00
                 }
               }
             ]
@@ -192,7 +192,7 @@ if ENV["APPRAISAL_INITIALIZED"]
 
       context 'for existing records' do
         let(:employee) { Employee.create!(first_name: 'Joe') }
-        let(:salary) { Salary.new(base_rate: 15.0, over_time_rate: 30.00) }
+        let(:salary) { Salary.new(base_rate: 15.0, overtime_rate: 30.00) }
 
         before do
           employee.salary = salary

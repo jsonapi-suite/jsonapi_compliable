@@ -42,7 +42,7 @@ ActiveRecord::Schema.define(:version => 1) do
   create_table :salaries do |t|
     t.integer :employee_id
     t.decimal :base_rate
-    t.decimal :over_time_rate
+    t.decimal :overtime_rate
   end
 end
 
@@ -229,5 +229,5 @@ class SerializableSalary < SerializableAbstract
   type 'salaries'
 
   attribute :base_rate
-  attribute :over_time_rate
+  attribute :overtime_rate
 end
