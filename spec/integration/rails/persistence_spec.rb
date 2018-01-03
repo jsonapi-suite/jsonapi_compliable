@@ -187,6 +187,10 @@ if ENV["APPRAISAL_INITIALIZED"]
           expect {
             do_post
           }.to change { Salary.count }.by(1)
+
+          salary = Employee.first.salary
+          expect(salary.base_rate).to eq(15.0)
+          expect(salary.overtime_rate).to eq(30.0)
         end
       end
 
@@ -196,7 +200,7 @@ if ENV["APPRAISAL_INITIALIZED"]
 
         before do
           employee.salary = salary
-          employee.save
+          employee.save!
         end
 
         context 'on update' do
@@ -234,7 +238,6 @@ if ENV["APPRAISAL_INITIALIZED"]
           end
         end
 
-
         context 'on destroy' do
           let(:payload) do
             {
@@ -259,6 +262,7 @@ if ENV["APPRAISAL_INITIALIZED"]
             employee.reload
 
             expect(employee.salary).to be_nil
+            expect { salary.reload }.to raise_error(ActiveRecord::RecordNotFound)
           end
         end
 

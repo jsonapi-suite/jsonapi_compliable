@@ -159,9 +159,9 @@ class EmployeeResource < ApplicationResource
     scope: -> { Team.all },
     foreign_key: { employee_teams: :employee_id }
   has_one :salary,
-          scope: -> { Salary.all },
-          foreign_key: :employee_id,
-          resource: SalaryResource
+    resource: SalaryResource,
+    scope: -> { Salary.all },
+    foreign_key: :employee_id
 
   polymorphic_belongs_to :workspace,
     group_by: :workspace_type,
