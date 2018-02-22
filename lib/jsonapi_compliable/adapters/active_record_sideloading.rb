@@ -120,6 +120,40 @@ module JsonapiCompliable
 
         instance_eval(&blk) if blk
       end
+
+      def polymorphic_has_many(association_name, group_by:, groups:, &blk)
+        allow_sideload association_name, type: :polymorphic_belongs_to, polymorphic: true do
+          group_by(group_by)
+
+          groups.each_pair do |type, config|
+            primary_key = config[:primary_key] || :id
+            foreign_key = config[:foreign_key]
+
+            allow_sideload type, parent: self, primary_key: primary_key, foreign_key: foreign_key, type: :belongs_to, resource: config[:resource] do
+              scope do |parents|
+                parent_ids = parents.map { |p| p.send(primary_key) }
+                parent_ids.compact!
+                parent_ids.uniq!
+                config[:scope].call.where(foreign_key => parent_ids)
+              end
+
+              assign do |parents, children|
+                parents.each do |parent|
+                  parent.association(association_name).loaded!
+                  relevant_children = children.select { |c| c.send(foreign_key) == parent.send(primary_key) }
+                  relevant_children.each do |c|
+                    parent.association(association_name).add_to_target(c, :skip_callbacks)
+                  end
+                end
+
+              end
+            end
+          end
+        end
+
+        instance_eval(&blk) if blk
+        end
+      end
     end
   end
 end
