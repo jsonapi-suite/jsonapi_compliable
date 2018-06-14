@@ -87,6 +87,51 @@ RSpec.describe 'filtering' do
     end
   end
 
+  context 'when filter is a {{string}} with a comma' do
+    before do
+      params[:filter] = { first_name: '{{foo,bar}}' }
+      author2.update_attribute(:first_name, 'foo,bar')
+    end
+
+    # todo test dont convert to single el array
+    it 'does not convert to array' do
+      ids = scope.resolve.map(&:id)
+      expect(ids).to eq([author2.id])
+    end
+
+    it 'yields single element, not array' do
+      query = Author.all
+      expect(query).to receive(:where)
+        .with(first_name: "foo,bar").and_call_original
+      allow(Author).to receive(:all) { query }
+      scope.resolve
+    end
+
+    context 'when an array of escaped/non-escapred strings' do
+      before do
+        params[:filter] = { first_name: '{{foo,bar}},Stephen,{{Harold}}' }
+      end
+
+      it 'works correctly' do
+        ids = scope.resolve.map(&:id)
+        expect(ids).to eq([author1.id, author2.id, author4.id])
+      end
+    end
+
+    context 'when an escaped string contains quoted strings' do
+      before do
+        params[:filter] = { first_name: '{{foo "bar"}},baz' }
+        author2.update_attribute(:first_name, 'foo "bar"')
+        author3.update_attribute(:first_name, 'baz')
+      end
+
+      it 'works correctly' do
+        ids = scope.resolve.map(&:id)
+        expect(ids).to eq([author2.id, author3.id])
+      end
+    end
+  end
+
   context 'when filter is an integer' do
     before do
       params[:filter] = { id: author1.id }

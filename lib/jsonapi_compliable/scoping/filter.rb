@@ -52,10 +52,29 @@ module JsonapiCompliable
       filter_param.each_pair do |param_name, param_value|
         filter = find_filter!(param_name.to_sym)
         value  = param_value
-        value  = value.split(',') if value.is_a?(String) && value.include?(',')
+        value  = parse_string_arrays(value)
         value  = normalize_string_values(value)
         yield filter, value
       end
+    end
+
+    # foo,bar,baz becomes ["foo", "bar", "baz"]
+    # {{foo,bar}},baz becomes ["foo,bar", "baz"]
+    def parse_string_arrays(value)
+      if value.is_a?(String) && value.include?(',')
+        # Fine the quoted strings
+        quotes = value.scan(/{{.*?}}/)
+        # remove them from the rest
+        quotes.each { |q| value.gsub!(q, '') }
+        # remove the quote characters from the quoted strings
+        quotes.each { |q| q.gsub!('{{', '').gsub!('}}', '') }
+        # merge everything back together into an array
+        value = value.split(',') + quotes
+        # remove any blanks that are left
+        value.reject! { |v| v.length.zero? }
+        value = value[0] if value.length == 1
+      end
+      value
     end
 
     # Convert a string of "true" to true, etc
