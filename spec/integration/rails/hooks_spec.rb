@@ -1,6 +1,4 @@
 if ENV["APPRAISAL_INITIALIZED"]
-  require 'rails_spec_helper'
-
   RSpec.describe 'sideload lifecycle hooks', type: :controller do
     class Callbacks
       def self.fired
@@ -17,26 +15,24 @@ if ENV["APPRAISAL_INITIALIZED"]
     end
 
     module IntegrationHooks
-      class BookResource < JsonapiCompliable::Resource
+      class ApplicationResource < JsonapiCompliable::Resource
+        use_adapter JsonapiCompliable::Adapters::ActiveRecord::Base
+      end
+
+      class BookResource < ApplicationResource
         type :books
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
         model Book
       end
 
-      class StateResource < JsonapiCompliable::Resource
+      class StateResource < ApplicationResource
         type :states
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
         model State
       end
 
-      class AuthorResource < JsonapiCompliable::Resource
-        type :authors
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
+      class AuthorResource < ApplicationResource
         model Author
 
         has_many :books,
-          foreign_key: :author_id,
-          scope: -> { Book.all },
           resource: BookResource do
             after_save only: [:create] do |author, books|
               Callbacks.fired[:after_create] = [author, books]
@@ -60,8 +56,6 @@ if ENV["APPRAISAL_INITIALIZED"]
           end
 
         belongs_to :state,
-          foreign_key: :state_id,
-          scope: -> { State.all },
           resource: StateResource do
             after_save only: [:create] do |author, states|
               Callbacks.fired[:state_after_create] = [author, states]

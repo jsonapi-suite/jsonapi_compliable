@@ -169,7 +169,7 @@ module JsonapiCompliable
     private
 
     def association?(name)
-      resource.association_names.include?(name)
+      resource.class.association_names.include?(name)
     end
 
     def parse_include(memo, incl_hash, namespace)
@@ -224,7 +224,7 @@ module JsonapiCompliable
         sorts.each do |s|
           if s.include?('.')
             type, attr = s.split('.')
-            if type.starts_with?('-')
+            if type[0] == '-'
               type = type.sub('-', '')
               attr = "-#{attr}"
             end
@@ -245,14 +245,15 @@ module JsonapiCompliable
           if [:number, :size].include?(key)
             hash[resource.type][:page][key] = value.to_i
           else
-            hash[key][:page] = { number: value[:number].to_i, size: value[:size].to_i }
+            number = value[:number].to_i if value[:number]
+            hash[key][:page] = { number: number, size: value[:size].to_i }
           end
         end
       end
     end
 
     def sort_attr(attr)
-      value = attr.starts_with?('-') ? :desc : :asc
+      value = attr[0] == '-' ? :desc : :asc
       key   = attr.sub('-', '').to_sym
 
       { key => value }

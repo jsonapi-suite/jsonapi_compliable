@@ -1,50 +1,37 @@
 if ENV["APPRAISAL_INITIALIZED"]
-  require 'rails_spec_helper'
-
-  RSpec.describe 'integrated resources and adapters', type: :controller do
-    let(:genre_resource) do
-      Class.new(JsonapiCompliable::Resource) do
-        type :genres
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
+  RSpec.describe 'sideload whitelist', type: :controller do
+    module SideloadWhitelist
+      class ApplicationResource < JsonapiCompliable::Resource
+        self.adapter = JsonapiCompliable::Adapters::ActiveRecord::Base.new
       end
-    end
 
-    let(:book_resource) do
-      Class.new(JsonapiCompliable::Resource) do
-        type :books
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
+      class GenreResource < ApplicationResource
+        self.type = :genres
+        self.model = Genre
+      end
+
+      class BookResource < ApplicationResource
+        self.type = :books
+        self.model = Book
+
         allow_filter :id
 
-        belongs_to :genre,
-          scope: -> { Genre.all },
-          foreign_key: :genre_id,
-          resource: GenreResource
+        belongs_to :genre
       end
-    end
 
-    let(:author_resource) do
-      Class.new(JsonapiCompliable::Resource) do
-        type :authors
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
+      class AuthorResource < ApplicationResource
+        self.type = :authors
+        self.model = Author
 
-        has_many :books,
-          scope: -> { Book.all },
-          foreign_key: :author_id,
-          resource: BookResource
+        has_many :books
       end
-    end
-
-    before do
-      stub_const('GenreResource', genre_resource)
-      stub_const('BookResource', book_resource)
-      stub_const('AuthorResource', author_resource)
-
-      controller.class.jsonapi resource: AuthorResource
     end
 
     controller(ApplicationController) do
+      jsonapi resource: SideloadWhitelist::AuthorResource
+
       def index
-        render_jsonapi(Author.all)
+        render jsonapi: Author.all
       end
     end
 

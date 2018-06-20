@@ -1,6 +1,4 @@
 if ENV["APPRAISAL_INITIALIZED"]
-  require 'rails_spec_helper'
-
   RSpec.describe 'before_commit hook', type: :controller do
     class Callbacks
       class << self
@@ -21,7 +19,7 @@ if ENV["APPRAISAL_INITIALIZED"]
 
     module IntegrationHooks
       class ApplicationResource < JsonapiCompliable::Resource
-        use_adapter JsonapiCompliable::Adapters::ActiveRecord
+        use_adapter JsonapiCompliable::Adapters::ActiveRecord::Base
       end
 
       class DepartmentResource < ApplicationResource
@@ -47,10 +45,7 @@ if ENV["APPRAISAL_INITIALIZED"]
           end
         end
 
-        belongs_to :department,
-          resource: DepartmentResource,
-          scope: -> { Department.all },
-          foreign_key: :department_id
+        belongs_to :department
       end
 
       class EmployeeResource < ApplicationResource
@@ -78,10 +73,7 @@ if ENV["APPRAISAL_INITIALIZED"]
           end
         end
 
-        has_many :positions,
-          foreign_key: :employee_id,
-          scope: -> { Position.all },
-          resource: PositionResource
+        has_many :positions
       end
     end
 

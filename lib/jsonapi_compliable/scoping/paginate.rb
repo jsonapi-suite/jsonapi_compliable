@@ -31,6 +31,8 @@ module JsonapiCompliable
       if size > MAX_PAGE_SIZE
         raise JsonapiCompliable::Errors::UnsupportedPageSize
           .new(size, MAX_PAGE_SIZE)
+      elsif requested? && @opts[:sideload_parent_length].to_i > 1
+        raise JsonapiCompliable::Errors::UnsupportedPagination
       else
         super
       end
@@ -42,8 +44,8 @@ module JsonapiCompliable
     #
     # @return [Boolean] should we apply this logic?
     def apply?
-      if @opts[:default] == false
-        not [page_param[:size], page_param[:number]].all?(&:nil?)
+      if @opts[:default_paginate] == false
+        requested?
       else
         true
       end
@@ -66,12 +68,16 @@ module JsonapiCompliable
 
     private
 
+    def requested?
+      not [page_param[:size], page_param[:number]].all?(&:nil?)
+    end
+
     def page_param
       @page_param ||= (query_hash[:page] || {})
     end
 
     def number
-      (page_param[:number] || resource.default_page_number).to_i
+      (page_param[:number] || 1).to_i
     end
 
     def size

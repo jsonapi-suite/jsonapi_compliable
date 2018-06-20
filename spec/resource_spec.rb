@@ -4,6 +4,31 @@ RSpec.describe JsonapiCompliable::Resource do
   let(:klass) { Class.new(described_class) }
   let(:instance) { klass.new }
 
+  # This is the test for all 'config' behavior
+  context 'when inheriting' do
+    before do
+      klass.class_eval do
+        allow_sideload :foo
+      end
+    end
+
+    let(:subclass) do
+      Class.new(klass)
+    end
+
+    it 'inherits sideloads'  do
+      expect(subclass.config[:sideloads].keys).to eq([:foo])
+    end
+
+    it 'does not modify superclass sideloads' do
+      subclass.class_eval do
+        allow_sideload :bar
+      end
+      expect(subclass.config[:sideloads].keys).to eq([:foo, :bar])
+      expect(klass.config[:sideloads].keys).to eq([:foo])
+    end
+  end
+
   describe '#stat' do
     let(:avg_proc) { proc { |scope, attr| 1 } }
 
@@ -73,67 +98,87 @@ RSpec.describe JsonapiCompliable::Resource do
   end
 
   describe '#default_sort' do
-    it 'gets/sets correctly' do
-      klass.default_sort([{ name: :desc }])
-      expect(instance.default_sort).to eq([{ name: :desc }])
-    end
-
     it 'defaults' do
-      expect(instance.default_sort).to eq([{ id: :asc }])
-    end
-  end
-
-  describe '#default_page_number' do
-    it 'gets/sets correctly' do
-      klass.default_page_number(2)
-      expect(instance.default_page_number).to eq(2)
-    end
-
-    it 'defaults' do
-      expect(instance.default_page_number).to eq(1)
+      expect(instance.default_sort).to eq([])
     end
   end
 
   describe '#default_page_size' do
-    it 'gets/sets correctly' do
-      klass.default_page_size(10)
-      expect(instance.default_page_size).to eq(10)
-    end
-
     it 'defaults' do
       expect(instance.default_page_size).to eq(20)
     end
   end
 
   describe '#type' do
-    it 'gets/sets correctly' do
-      klass.type :authors
-      expect(instance.type).to eq(:authors)
-    end
-
     it 'defaults' do
       expect(instance.type).to eq(:undefined_jsonapi_type)
     end
   end
 
-  describe '#association_names' do
-    it 'collects nested + resource sideloads' do
-      klass.allow_sideload :books do
-        genre_resource = Class.new(JsonapiCompliable::Resource) do
-          allow_sideload :from_genre_resource do
-            allow_sideload :nested_from_genre_resource
+  describe '#adapter' do
+    it 'defaults' do
+      expect(instance.adapter.class).to eq(JsonapiCompliable::Adapters::Abstract)
+    end
+  end
+
+  describe '.allow_sideload' do
+    it 'uses Sideload as default class' do
+      sideload = klass.allow_sideload :comments
+      expect(sideload.class.ancestors[1]).to eq(JsonapiCompliable::Sideload)
+    end
+
+    it 'assigns parent resource as self' do
+      sideload = klass.allow_sideload :comments
+      expect(sideload.parent_resource_class).to eq(klass)
+    end
+
+    it 'adds to the list of sideloads' do
+      sideload = klass.allow_sideload :comments
+      expect(klass.sideloads[:comments]).to eq(sideload)
+    end
+
+    it 'passes options to the sideload constructor' do
+      sideload = klass.allow_sideload :comments, type: :foo
+      expect(sideload.type).to eq(:foo)
+    end
+
+    context 'when passed a block' do
+      it 'is processed' do
+        sideload = klass.allow_sideload :comments do
+          scope do |parents|
+            'foo'
           end
         end
-        allow_sideload :genre, resource: genre_resource
+        expect(sideload.class.scope_proc.call([])).to eq('foo')
       end
-      klass.allow_sideload :state, polymorphic: true
-      expect(instance.association_names)
-        .to match_array([:books, :genre, :state, :from_genre_resource, :nested_from_genre_resource])
+    end
+
+    context 'when passed explicit :class' do
+      it 'is used' do
+        sideload = klass.allow_sideload :comments,
+          class: JsonapiCompliable::Sideload::HasMany
+        expect(sideload.class.ancestors[1])
+          .to eq(JsonapiCompliable::Sideload::HasMany)
+      end
+    end
+  end
+
+  describe '.association_names' do
+    it 'collects nested + resource sideloads' do
+      position_resource = Class.new(PORO::PositionResource) do
+        belongs_to :department
+        def self.name
+          'PORO::PositionResource'
+        end
+      end
+      klass.has_many :positions, resource: position_resource
+      expect(klass.association_names)
+        .to match_array([:positions, :department])
     end
 
     context 'when no whitelist' do
       it 'defaults to empty array' do
-        expect(instance.association_names).to eq([])
+        expect(klass.association_names).to eq([])
       end
     end
   end
