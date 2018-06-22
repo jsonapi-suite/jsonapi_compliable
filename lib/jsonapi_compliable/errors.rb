@@ -1,8 +1,63 @@
 module JsonapiCompliable
   module Errors
-    class BadFilter < StandardError; end
+    class Base < StandardError;end
 
-    class ValidationError < StandardError
+    class AttributeError < Base
+      attr_reader :resource,
+        :name,
+        :flag,
+        :exists,
+        :request,
+        :guard
+
+      def initialize(resource, name, flag, **opts)
+        @resource = resource
+        @name = name
+        @flag = flag
+        @exists = opts[:exists] || false
+        @request = opts[:request] || false
+        @guard = opts[:guard]
+      end
+
+      def action
+        if @request
+          {
+            sortable: 'sort on',
+            filterable: 'filter on'
+          }[@flag]
+        else
+          {
+            sortable: 'add sort',
+            filterable: 'add filter'
+          }[@flag]
+        end
+      end
+
+      def resource_name
+        name = if @resource.is_a?(JsonapiCompliable::Resource)
+          @resource.class.name
+        else
+          @resource.name
+        end
+        name || 'AnonymousResourceClass'
+      end
+
+      def message
+        msg = "#{resource_name}: Tried to #{action} on attribute #{@name.inspect}"
+        if @exists
+          if @guard
+            msg << ", but the guard #{@guard.inspect} did not pass."
+          else
+            msg << ", but the attribute was marked #{@flag.inspect} => false."
+          end
+        else
+          msg << ", but could not find an attribute with that name."
+        end
+        msg
+      end
+    end
+
+    class ValidationError < Base
       attr_reader :validation_response
 
       def initialize(validation_response)
@@ -10,41 +65,74 @@ module JsonapiCompliable
       end
     end
 
-    class MissingSerializer < StandardError
-      def initialize(class_name, serializer_name)
-        @class_name = class_name
-        @serializer_name = serializer_name
+    class ModelNotFound < Base
+      def initialize(resource_class)
+        @resource_class = resource_class
       end
 
       def message
         <<-MSG
-Could not find serializer for class '#{@class_name}'!
+Could not find model for Resource '#{@resource_class}'
 
-Looked for '#{@serializer_name}' but doesn't appear to exist.
-
-Use a custom Inferrer if you'd like different lookup logic.
+Manually set model (self.model = MyModel) if it does not match name of the Resource.
         MSG
       end
     end
 
-    class MissingSerializer < StandardError
-      def initialize(class_name, serializer_name)
-        @class_name = class_name
-        @serializer_name = serializer_name
+    class TypeNotFound < Base
+      def initialize(resource, attribute, type)
+        @resource = resource
+        @attribute = attribute
+        @type = type
       end
 
       def message
         <<-MSG
-Could not find serializer for class '#{@class_name}'!
+Could not find type #{@type.inspect}! This was specified on attribute #{@attribute.inspect} within resource #{@resource.name}
 
-Looked for '#{@serializer_name}' but doesn't appear to exist.
-
-Use a custom Inferrer if you'd like different lookup logic.
+Valid types are: #{JsonapiCompliable::Types::MAP.keys.inspect}
         MSG
       end
     end
 
-    class UnsupportedPageSize < StandardError
+    class ResourceNotFound < Base
+      def initialize(resource, sideload_name)
+        @resource = resource
+        @sideload_name = sideload_name
+      end
+
+      def message
+        <<-MSG
+Could not find resource class for sideload '#{@sideload_name}' on Resource '#{@resource.class.name}'!
+
+If this follows a non-standard naming convention, use the :resource option to pass it directly:
+
+has_many :comments, resource: SpecialCommentResource
+        MSG
+      end
+    end
+
+    class UnsupportedPagination < Base
+      def message
+        <<-MSG
+It looks like you are requesting pagination of a sideload, but there are > 1 parents.
+
+This is not supported. In other words, you can do
+
+/employees/1?include=positions&page[positions][size]=2
+
+But not
+
+/employees?include=positions&page[positions][size]=2
+
+This is a limitation of most datastores; the same issue exists in ActiveRecord.
+
+Consider using a named relationship instead, e.g. 'has_one :top_comment'
+        MSG
+      end
+    end
+
+    class UnsupportedPageSize < Base
       def initialize(size, max)
         @size, @max = size, max
       end
@@ -54,7 +142,7 @@ Use a custom Inferrer if you'd like different lookup logic.
       end
     end
 
-    class InvalidInclude < StandardError
+    class InvalidInclude < Base
       def initialize(relationship, parent_resource)
         @relationship = relationship
         @parent_resource = parent_resource
@@ -65,7 +153,7 @@ Use a custom Inferrer if you'd like different lookup logic.
       end
     end
 
-    class StatNotFound < StandardError
+    class StatNotFound < Base
       def initialize(attribute, calculation)
         @attribute = attribute
         @calculation = calculation
@@ -86,19 +174,20 @@ Use a custom Inferrer if you'd like different lookup logic.
       end
     end
 
-    class RecordNotFound < StandardError
+    class RecordNotFound < Base
     end
 
-    class RequiredFilter < StandardError
-      def initialize(attributes)
+    class RequiredFilter < Base
+      def initialize(resource, attributes)
+        @resource = resource
         @attributes = Array(attributes)
       end
 
       def message
         if @attributes.length > 1
-          "The required filters \"#{@attributes.join(', ')}\" were not provided"
+          "The required filters \"#{@attributes.join(', ')}\" on resource #{@resource.class} were not provided"
         else
-          "The required filter \"#{@attributes[0]}\" was not provided"
+          "The required filter \"#{@attributes[0]}\" on resource #{@resource.class} was not provided"
         end
       end
     end

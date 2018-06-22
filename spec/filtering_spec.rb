@@ -1,78 +1,104 @@
 require 'spec_helper'
 
 RSpec.describe 'filtering' do
-  include_context 'scoping'
+  include JsonHelpers
+  include_context 'resource testing'
+  let(:resource) { Class.new(PORO::EmployeeResource) }
+  let(:base_scope) { { type: :employees, conditions: {} } }
 
-  before do
-    resource_class.class_eval do
-      allow_filter :id
-      allow_filter :first_name, aliases: [:name]
-      allow_filter :first_name_guarded, if: :can_filter_first_name? do |scope, value|
-        scope.where(first_name: value)
+  let!(:employee1) do
+    PORO::Employee.create(first_name: 'Stephen', last_name: 'King')
+  end
+  let!(:employee2) do
+    PORO::Employee.create(first_name: 'Agatha', last_name: 'Christie')
+  end
+  let!(:employee3) do
+    PORO::Employee.create(first_name: 'William', last_name: 'Shakesphere')
+  end
+  let!(:employee4) do
+    PORO::Employee.create(first_name: 'Harold',  last_name: 'Robbins')
+  end
+
+  it 'scopes correctly' do
+    params[:filter] = { id: employee1.id }
+    expect(records.map(&:id)).to eq([employee1.id])
+  end
+
+  context 'when filtering based on calling context' do
+    around do |e|
+      JsonapiCompliable.with_context(OpenStruct.new(runtime_id: employee3.id)) do
+        e.run
       end
-      allow_filter :first_name_prefix do |scope, value|
-        scope.where(['first_name like ?', "#{value}%"])
+    end
+
+    before do
+      resource.attribute :foo, :boolean
+      resource.filter :foo do |scope, value, ctx|
+        scope[:conditions][:id] = ctx.runtime_id
+        scope
       end
-      allow_filter :active
-      allow_filter :temp do |scope, value, ctx|
-        scope.where(id: ctx.runtime_id)
-      end
+      params[:filter] = { foo: true }
+    end
+
+    it 'has access to calling context' do
+      expect(records.map(&:id)).to eq([employee3.id])
     end
   end
 
-  let!(:author1) { Author.create!(first_name: 'Stephen', last_name: 'King') }
-  let!(:author2) { Author.create!(first_name: 'Agatha', last_name: 'Christie') }
-  let!(:author3) { Author.create!(first_name: 'William', last_name: 'Shakesphere') }
-  let!(:author4) { Author.create!(first_name: 'Harold',  last_name: 'Robbins') }
+  context 'when running an implicit attribute filter' do
+    before do
+      resource.attribute :active, :boolean
+    end
 
-  it 'scopes correctly' do
-    params[:filter] = { id: author1.id }
-    expect(scope.resolve.map(&:id)).to eq([author1.id])
-  end
-
-  # For example, getting current user from controller
-  it 'has access to calling context' do
-    ctx = double(runtime_id: author3.id).as_null_object
-    JsonapiCompliable.with_context(ctx, {}) do
-      params[:filter] = { temp: true }
-      expect(scope.resolve.map(&:id)).to eq([author3.id])
+    it 'works' do
+      params[:filter] = { active: 'true' }
+      [employee1, employee3, employee4].each do |e|
+        e.update_attributes(active: true)
+      end
+      employee2.update_attributes(active: false)
+      expect(records.map(&:id)).to eq([employee1.id, employee3.id, employee4.id])
     end
   end
 
   context 'when filter is a "string nil"' do
     before do
       params[:filter] = { first_name: 'nil' }
-      author2.update_attribute(:first_name, nil)
+      PORO::DB.data
+      employee2.update_attributes(first_name: nil)
     end
 
     it 'converts to a real nil' do
-      ids = scope.resolve.map(&:id)
-      expect(ids).to eq([author2.id])
+      ids = records.map(&:id)
+      expect(ids).to eq([employee2.id])
     end
   end
 
   context 'when filter is a "string null"' do
     before do
       params[:filter] = { first_name: 'null' }
-      author2.update_attribute(:first_name, nil)
+      employee2.update_attributes(first_name: nil)
     end
 
     it 'converts to a real nil' do
-      ids = scope.resolve.map(&:id)
-      expect(ids).to eq([author2.id])
+      ids = records.map(&:id)
+      expect(ids).to eq([employee2.id])
     end
   end
 
   context 'when filter is a "string boolean"' do
     before do
+      resource.attribute :active, :boolean
       params[:filter] = { active: 'true' }
-      author2.update_attribute(:active, false)
+      [employee1, employee3, employee4].each do |e|
+        e.update_attributes(active: true)
+      end
+      employee2.update_attributes(active: false)
     end
 
     it 'automatically casts to a real boolean' do
-      ids = scope.resolve.map(&:id)
+      ids = records.map(&:id)
       expect(ids.length).to eq(3)
-      expect(ids).to_not include(author2.id)
+      expect(ids).to_not include(employee2.id)
     end
 
     context 'and multiple are passed' do
@@ -81,7 +107,7 @@ RSpec.describe 'filtering' do
       end
 
       it 'still works' do
-        ids = scope.resolve.map(&:id)
+        ids = records.map(&:id)
         expect(ids.length).to eq(4)
       end
     end
@@ -134,21 +160,11 @@ RSpec.describe 'filtering' do
 
   context 'when filter is an integer' do
     before do
-      params[:filter] = { id: author1.id }
+      params[:filter] = { id: employee1.id }
     end
 
     it 'still works' do
-      expect(scope.resolve.map(&:id)).to eq([author1.id])
-    end
-  end
-
-  context 'when customized with a block' do
-    before do
-      params[:filter] = { first_name_prefix: 'Ag' }
-    end
-
-    it 'scopes based on the given block' do
-      expect(scope.resolve.map(&:id)).to eq([author2.id])
+      expect(records.map(&:id)).to eq([employee1.id])
     end
   end
 
@@ -157,187 +173,178 @@ RSpec.describe 'filtering' do
       params[:filter] = { name: 'Stephen' }
     end
 
-    it 'filters based on the correct name' do
-      expect(scope.resolve.map(&:id)).to eq([author1.id])
+    xit 'filters based on the correct name' do
+      expect(records.map(&:id)).to eq([employee1.id])
     end
   end
 
   context 'when the supplied value is comma-delimited' do
     before do
-      params[:filter] = { id: [author1.id, author2.id].join(',') }
+      params[:filter] = { id: [employee1.id, employee2.id].join(',') }
     end
 
     it 'parses into a ruby array' do
-      expect(scope.resolve.map(&:id)).to eq([author1.id, author2.id])
+      expect(records.map(&:id)).to eq([employee1.id, employee2.id])
     end
   end
 
   context 'when a default filter' do
     before do
-      resource_class.class_eval do
+      resource.class_eval do
         default_filter :first_name do |scope|
-          scope.where(first_name: 'William')
+          scope[:conditions].merge!(first_name: 'William')
+          scope
         end
       end
     end
 
     it 'applies by default' do
-      expect(scope.resolve.map(&:id)).to eq([author3.id])
+      expect(records.map(&:id)).to eq([employee3.id])
     end
 
     it 'is overrideable' do
       params[:filter] = { first_name: 'Stephen' }
-      expect(scope.resolve.map(&:id)).to eq([author1.id])
+      expect(records.map(&:id)).to eq([employee1.id])
     end
 
-    it "is overrideable when overriding via an allowed filter's alias" do
+    xit "is overrideable when overriding via an allowed filter's alias" do
       params[:filter] = { name: 'Stephen' }
-      expect(scope.resolve.map(&:id)).to eq([author1.id])
+      expect(records.map(&:id)).to eq([employee1.id])
     end
 
     context 'when accessing calling context' do
       before do
-        resource_class.class_eval do
+        resource.class_eval do
           default_filter :first_name do |scope, ctx|
-            scope.where(id: ctx.runtime_id)
+            scope[:conditions].merge!(id: ctx.runtime_id)
+            scope
           end
         end
       end
 
       it 'works' do
-        ctx = double(runtime_id: author3.id).as_null_object
+        ctx = double(runtime_id: employee3.id).as_null_object
         JsonapiCompliable.with_context(ctx, {}) do
-          expect(scope.resolve.map(&:id)).to eq([author3.id])
+          expect(records.map(&:id)).to eq([employee3.id])
         end
       end
     end
   end
 
-  context 'when the filter is guarded' do
-    let(:can_filter) { true }
-    let(:ctx) { double(can_filter_first_name?: can_filter).as_null_object }
-
-    before do
-      params[:filter] = { first_name_guarded: 'Stephen' }
-    end
-
-    context 'and the guard passes' do
-      it 'filters normally' do
-        resource.with_context ctx do
-          expect(scope.resolve.map(&:id)).to eq([author1.id])
-        end
-      end
-    end
-
-    context 'and the guard does not pass' do
-      let(:can_filter) { false }
-
-      it 'raises an error' do
-        expect {
-          resource.with_context ctx do
-            scope.resolve
-          end
-        }.to raise_error(JsonapiCompliable::Errors::BadFilter)
-      end
-    end
-  end
-
-  context 'when the filter is not whitelisted' do
+  context 'when filtering on an unknown attribute' do
     before do
       params[:filter] = { foo: 'bar' }
     end
 
-    it 'raises an error' do
+    it 'raises helpful error' do
       expect {
-        scope.resolve
-      }.to raise_error(JsonapiCompliable::Errors::BadFilter)
+        records
+      }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to filter on on attribute :foo, but could not find an attribute with that name.')
+    end
+
+    context 'but there is a corresponding extra attribute' do
+      before do
+        resource.extra_attribute :foo, :string
+      end
+
+      context 'but it is not filterable' do
+        it 'raises helpful error' do
+          expect {
+            records
+          }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to filter on on attribute :foo, but the attribute was marked :filterable => false.')
+        end
+      end
+
+      context 'and it is filterable' do
+        before do
+          resource.extra_attribute :foo, :string, filterable: true
+          resource.filter :foo do |scope, dir|
+            scope[:conditions] = { id: employee3.id }
+            scope
+          end
+        end
+
+        it 'works' do
+          expect(records.map(&:id)).to eq([employee3.id])
+        end
+      end
     end
   end
 
-  context 'when one or more filters are required' do
+  context 'when filter is guarded' do
     before do
-      author = author1
-      resource_class.class_eval do
-        allow_filter :required, required: true do |scope, value|
-          scope.where(id: author.id)
-        end
+      resource.class_eval do
+        attribute :first_name, :string, filterable: :admin?
 
-        allow_filter :also_required, required: true do |scope, value|
-          scope.where(first_name: author.first_name)
+        def admin?
+          !!context.admin
         end
+      end
+      params[:filter] = { first_name: 'Agatha' }
+    end
+
+    context 'and the guard passes' do
+      around do |e|
+        JsonapiCompliable.with_context(OpenStruct.new(admin: true)) do
+          e.run
+        end
+      end
+
+      it 'works' do
+        expect(records.map(&:id)).to eq([employee2.id])
       end
     end
 
-    context 'and all required filter are provided' do
-      before do
-        params[:filter] = { required: true, also_required: true }
+    context 'and the guard fails' do
+      around do |e|
+        JsonapiCompliable.with_context(OpenStruct.new(admin: false)) do
+          e.run
+        end
       end
 
-      it 'should return results' do
-        ids = scope.resolve.map(&:id)
-        expect(ids).to eq([author1.id])
-      end
-    end
-
-    context 'and at least one required filter is provided but some are missing' do
-      before do
-        params[:filter] = { required: true }
-      end
-
-      it 'raises an error' do
+      it 'raises helpful error' do
         expect {
-          scope.resolve
-        }.to raise_error(JsonapiCompliable::Errors::RequiredFilter, 'The required filter "also_required" was not provided')
+          records
+        }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to filter on on attribute :first_name, but the guard :admin? did not pass.')
       end
     end
+  end
 
-    context 'and no required filters are provided' do
+  context 'when filter is required' do
+    before do
+      resource.attribute :first_name, :string, filterable: :required
+    end
+
+    context 'and given in the request' do
       before do
-        params[:filter] = { }
+        params[:filter] = { first_name: 'Agatha' }
       end
 
-      it 'raises an error' do
-        expect {
-          scope.resolve
-        }.to raise_error(JsonapiCompliable::Errors::RequiredFilter, 'The required filters "required, also_required" were not provided')
+      it 'works' do
+        expect(records.map(&:id)).to eq([employee2.id])
       end
-
     end
 
-    context 'and required filter determined by proc' do
-      context 'when required proc evaluates to true' do
-        before do
-          resource_class.class_eval do
-            allow_filter :required_by_proc, required: Proc.new{|ctx| true} do |scope, value|
-              scope.where(first_name: author.first_name)
-            end
-          end
-
-          params[:filter] = { required: true, also_required: true }
-        end
-
-        it 'raises an error' do
-          expect {
-            scope.resolve
-          }.to raise_error(JsonapiCompliable::Errors::RequiredFilter, 'The required filter "required_by_proc" was not provided')
-        end
+    context 'but not given in request' do
+      it 'raises error' do
+        expect {
+          records
+        }.to raise_error(JsonapiCompliable::Errors::RequiredFilter)
       end
+    end
+  end
 
-      context 'when required proc evaluates to false' do
-        before do
-          resource_class.class_eval do
-            allow_filter :required_by_proc, required: Proc.new{|ctx| false} do |scope, value|
-              scope.where(first_name: author.first_name)
-            end
-          end
+  context 'when > 1 filter required' do
+    before do
+      resource.attribute :first_name, :string, filterable: :required
+      resource.attribute :last_name, :string, filterable: :required
+    end
 
-          params[:filter] = { required: true, also_required: true }
-        end
-
-        it 'should not be required' do
-          ids = scope.resolve.map(&:id)
-          expect(ids).to eq([author1.id])
-        end
+    context 'but not given in request' do
+      it 'raises error that lists all unsupplied filters' do
+        expect {
+          records
+        }.to raise_error(/The required filters "first_name, last_name"/)
       end
     end
   end

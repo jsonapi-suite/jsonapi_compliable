@@ -37,7 +37,9 @@ module JsonapiCompliable
       # when hitting /authors?include=state its 'state'
       @namespace = opts.delete(:namespace) || resource.type
 
-      apply_scoping(opts)
+      @resource.around_scoping(@object, query_hash) do |scope|
+        apply_scoping(scope, opts)
+      end
     end
 
     # Resolve the requested stats. Returns hash like:
@@ -64,6 +66,7 @@ module JsonapiCompliable
         []
       else
         resolved = @resource.resolve(@object)
+        assign_serializer(resolved)
         yield resolved if block_given?
         sideload(resolved, query_hash[:include]) if query_hash[:include]
         resolved
@@ -79,6 +82,15 @@ module JsonapiCompliable
 
     private
 
+    # Used to ensure the resource's serializer is used
+    # Not one derived through the usual jsonapi-rb logic
+    def assign_serializer(records)
+      records.each do |r|
+        serializer = @resource.class.serializer
+        r.instance_variable_set(:@__serializer_klass, serializer)
+      end
+    end
+
     def sideload(results, includes)
       return if results == []
 
@@ -86,7 +98,7 @@ module JsonapiCompliable
       promises = []
 
       includes.each_pair do |name, nested|
-        sideload = @resource.sideload(name)
+        sideload = @resource.class.sideload(name)
 
         if sideload.nil?
           if JsonapiCompliable.config.raise_on_missing_sideload
@@ -118,16 +130,16 @@ module JsonapiCompliable
       end
     end
 
-     def apply_scoping(opts)
+    def apply_scoping(scope, opts)
+      @object = scope
       add_scoping(nil, JsonapiCompliable::Scoping::DefaultFilter, opts)
       add_scoping(:filter, JsonapiCompliable::Scoping::Filter, opts)
-      add_scoping(:extra_fields, JsonapiCompliable::Scoping::ExtraFields, opts)
       add_scoping(:sort, JsonapiCompliable::Scoping::Sort, opts)
-      add_scoping(:paginate, JsonapiCompliable::Scoping::Paginate, opts, default: opts[:default_paginate])
+      add_scoping(:paginate, JsonapiCompliable::Scoping::Paginate, opts)
     end
 
     def add_scoping(key, scoping_class, opts, default = {})
-      @object = scoping_class.new(@resource, query_hash, @object, default).apply unless opts[key] == false
+      @object = scoping_class.new(@resource, query_hash, @object, opts).apply unless opts[key] == false
       @unpaginated_object = @object unless key == :paginate
     end
   end

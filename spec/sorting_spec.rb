@@ -1,26 +1,146 @@
 require 'spec_helper'
 
 RSpec.describe 'sorting' do
-  include_context 'scoping'
+  include JsonHelpers
+  include_context 'resource testing'
+  let(:resource) { Class.new(PORO::EmployeeResource) }
+  let(:base_scope) { { type: :employees } }
+
+  subject(:ids) { records.map(&:id) }
 
   before do
-    Author.create!(first_name: 'Stephen', last_name: 'King')
-    Author.create!(first_name: 'Philip', last_name: 'Dick')
+    PORO::Employee.create(first_name: 'John', last_name: 'Doe')
+    PORO::Employee.create(first_name: 'Jane', last_name: 'Doe')
+
+    resource.class_eval do
+      attribute :first_name, :string
+      attribute :last_name, :string
+    end
   end
 
   it 'defaults sort to resource default_sort' do
-    expect(scope.resolve.map(&:id)).to eq(Author.pluck(:id))
+    params[:sort] = '-id'
+    expect(ids).to eq([2,1])
+  end
+
+  context 'when sorting on an unknown attribute' do
+    before do
+      params[:sort] = 'asdf'
+    end
+
+    it 'raises helpful error' do
+      expect {
+        ids
+      }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to sort on on attribute :asdf, but could not find an attribute with that name.')
+    end
+
+    context 'but there is a corresponding extra attribute' do
+      before do
+        resource.extra_attribute :asdf, :string
+      end
+
+      context 'but it is not sortable' do
+        it 'raises helpful error' do
+          expect {
+            ids
+          }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to sort on on attribute :asdf, but the attribute was marked :sortable => false.')
+        end
+      end
+
+      context 'and it is sortable' do
+        before do
+          resource.extra_attribute :asdf, :string, sortable: true
+          resource.sort :asdf do |scope, dir|
+            scope[:sort] = [{ id: :desc }]
+            scope
+          end
+        end
+
+        it 'works' do
+          expect(ids).to eq([2, 1])
+        end
+      end
+    end
+  end
+
+  context 'when sorting on known unsortable attribute' do
+    before do
+      resource.attribute :foo, :string, sortable: false
+    end
+
+    it 'raises helpful error' do
+      params[:sort] = 'foo'
+      expect {
+        ids
+      }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to sort on on attribute :foo, but the attribute was marked :sortable => false.')
+    end
+  end
+
+  context 'when sort is guarded' do
+    before do
+      resource.class_eval do
+        attribute :first_name, :string, sortable: :admin?
+
+        def admin?
+          !!context.admin
+        end
+      end
+
+      params[:sort] = 'first_name'
+    end
+
+    context 'and the guard passes' do
+      around do |e|
+        JsonapiCompliable.with_context(OpenStruct.new(admin: true)) do
+          e.run
+        end
+      end
+
+      it 'works' do
+        expect(ids).to eq([2, 1])
+      end
+    end
+
+    context 'and the guard fails' do
+      around do |e|
+        JsonapiCompliable.with_context(OpenStruct.new(admin: false)) do
+          e.run
+        end
+      end
+
+      it 'raises helpful error' do
+        expect {
+          ids
+        }.to raise_error(JsonapiCompliable::Errors::AttributeError, 'AnonymousResourceClass: Tried to sort on on attribute :first_name, but the guard :admin? did not pass.')
+      end
+    end
+  end
+
+  context 'when custom sorting for a specific attribute' do
+    before do
+      resource.attribute :foo, :string
+      resource.sort :foo do |scope, direction|
+        scope[:sort] ||= []
+        scope[:sort] << { id: :desc }
+        scope
+      end
+    end
+
+    it 'is correctly applied' do
+      params[:sort] = 'foo'
+      expect(ids).to eq([2,1])
+    end
   end
 
   context 'when default_sort is overridden' do
     before do
-      resource_class.class_eval do
-        default_sort([{ id: :desc }])
+      resource.class_eval do
+        self.default_sort = [{ id: :desc }]
       end
     end
 
     it 'respects the override' do
-      expect(scope.resolve.map(&:id)).to eq(Author.pluck(:id).reverse)
+      expect(ids).to eq([2,1])
     end
   end
 
@@ -29,35 +149,35 @@ RSpec.describe 'sorting' do
       params[:sort] = sort_param
     end
 
-    subject { scope.resolve.map(&:first_name) }
+    subject { records.map(&:first_name) }
 
     context 'asc' do
       let(:sort_param) { 'first_name' }
 
-      it { is_expected.to eq(%w(Philip Stephen)) }
+      it { is_expected.to eq(%w(Jane John)) }
     end
 
     context 'desc' do
       let(:sort_param) { '-first_name' }
 
-      it { is_expected.to eq(%w(Stephen Philip)) }
+      it { is_expected.to eq(%w(John Jane)) }
     end
 
     context 'when prefixed with type' do
-      let(:sort_param) { 'authors.first_name' }
+      let(:sort_param) { 'employees.first_name' }
 
-      it { is_expected.to eq(%w(Philip Stephen)) }
+      it { is_expected.to eq(%w(Jane John)) }
     end
 
     context 'when passed multisort' do
       let(:sort_param) { 'first_name,last_name' }
 
       before do
-        Author.create(first_name: 'Stephen', last_name: 'Adams')
+        PORO::Employee.create(first_name: 'John', last_name: 'Adams')
       end
 
       it 'sorts correctly' do
-        expect(scope.resolve.map(&:last_name)).to eq(%w(Dick Adams King))
+        expect(ids).to eq([2, 3, 1])
       end
     end
 
@@ -65,22 +185,24 @@ RSpec.describe 'sorting' do
       let(:sort_param) { 'first_name' }
 
       before do
-        resource_class.class_eval do
-          sort do |scope, att, dir|
-            scope.order(id: :desc)
+        resource.class_eval do
+          sort_all do |scope, att, dir|
+            scope[:sort] = [{ id: :desc }]
+            scope
           end
         end
       end
 
       it 'uses the custom sort function' do
-        expect(scope.resolve.map(&:id)).to eq(Author.pluck(:id).reverse)
+        expect(ids).to eq([2, 1])
       end
 
       context 'and it accesses runtime context' do
         before do
-          resource_class.class_eval do
-            sort do |scope, att, dir, ctx|
-              scope.order(id: ctx.runtime_direction)
+          resource.class_eval do
+            sort_all do |scope, att, dir, ctx|
+              scope[:sort] = [{ id: ctx.runtime_direction }]
+              scope
             end
           end
         end
@@ -88,14 +210,14 @@ RSpec.describe 'sorting' do
         it 'works (desc)' do
           ctx = double(runtime_direction: :desc).as_null_object
           JsonapiCompliable.with_context(ctx, {}) do
-            expect(scope.resolve.map(&:id)).to eq(Author.pluck(:id).reverse)
+            expect(ids).to eq([2,1])
           end
         end
 
         it 'works (asc)' do
           ctx = double(runtime_direction: :asc).as_null_object
           JsonapiCompliable.with_context(ctx, {}) do
-            expect(scope.resolve.map(&:id)).to eq(Author.pluck(:id))
+            expect(ids).to eq([1,2])
           end
         end
       end
