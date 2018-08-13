@@ -59,17 +59,18 @@ module JsonapiCompliable
     end
 
     # foo,bar,baz becomes ["foo", "bar", "baz"]
+    # {{foo}} becomes ["foo"]
     # {{foo,bar}},baz becomes ["foo,bar", "baz"]
     def parse_string_arrays(value)
-      if value.is_a?(String) && value.include?(',')
-        # Fine the quoted strings
+      if value.is_a?(String)
+        # Find the quoted strings
         quotes = value.scan(/{{.*?}}/)
         # remove them from the rest
         quotes.each { |q| value.gsub!(q, '') }
         # remove the quote characters from the quoted strings
         quotes.each { |q| q.gsub!('{{', '').gsub!('}}', '') }
         # merge everything back together into an array
-        value = value.split(',') + quotes
+        value = Array(value.split(',')) + quotes
         # remove any blanks that are left
         value.reject! { |v| v.length.zero? }
         value = value[0] if value.length == 1
