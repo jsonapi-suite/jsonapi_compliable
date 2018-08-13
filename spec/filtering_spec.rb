@@ -93,7 +93,6 @@ RSpec.describe 'filtering' do
       author2.update_attribute(:first_name, 'foo,bar')
     end
 
-    # todo test dont convert to single el array
     it 'does not convert to array' do
       ids = scope.resolve.map(&:id)
       expect(ids).to eq([author2.id])
@@ -128,6 +127,38 @@ RSpec.describe 'filtering' do
       it 'works correctly' do
         ids = scope.resolve.map(&:id)
         expect(ids).to eq([author2.id, author3.id])
+      end
+    end
+  end
+
+  context 'when filter is a {{string}} without a comma' do
+    before do
+      params[:filter] = { first_name: '{{foo}}' }
+      author2.update_attribute(:first_name, 'foo')
+    end
+
+    it 'does not convert to array' do
+      ids = scope.resolve.map(&:id)
+      expect(ids).to eq([author2.id])
+    end
+
+    it 'yields single element, not array' do
+      query = Author.all
+      expect(query).to receive(:where)
+                         .with(first_name: "foo").and_call_original
+      allow(Author).to receive(:all) { query }
+      scope.resolve
+    end
+
+    context 'when an escaped string contains quoted strings' do
+      before do
+        params[:filter] = { first_name: '{{"foo"}}' }
+        author2.update_attribute(:first_name, '"foo"')
+      end
+
+      it 'works correctly' do
+        ids = scope.resolve.map(&:id)
+        expect(ids).to eq([author2.id])
       end
     end
   end
