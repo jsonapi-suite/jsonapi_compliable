@@ -17,6 +17,10 @@ RSpec.describe 'filtering' do
       allow_filter :temp do |scope, value, ctx|
         scope.where(id: ctx.runtime_id)
       end
+
+      allow_filter :by_json do |scope, value|
+        scope.where(id: value['id'])
+      end
     end
   end
 
@@ -84,6 +88,17 @@ RSpec.describe 'filtering' do
         ids = scope.resolve.map(&:id)
         expect(ids.length).to eq(4)
       end
+    end
+  end
+
+  context 'when filter is escaped JSON' do
+    before do
+      params[:filter] = { by_json: '{{{ "id": 2 }}}' }
+    end
+
+    it 'works' do
+      ids = scope.resolve.map(&:id)
+      expect(ids).to eq([author2.id])
     end
   end
 

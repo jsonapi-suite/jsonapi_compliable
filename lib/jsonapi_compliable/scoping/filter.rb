@@ -61,19 +61,28 @@ module JsonapiCompliable
     # foo,bar,baz becomes ["foo", "bar", "baz"]
     # {{foo}} becomes ["foo"]
     # {{foo,bar}},baz becomes ["foo,bar", "baz"]
+    #
+    # JSON of
+    # {{{ "id": 1 }}} becomes { 'id' => 1 }
     def parse_string_arrays(value)
-      if value.is_a?(String)
-        # Find the quoted strings
-        quotes = value.scan(/{{.*?}}/)
-        # remove them from the rest
-        quotes.each { |q| value.gsub!(q, '') }
-        # remove the quote characters from the quoted strings
-        quotes.each { |q| q.gsub!('{{', '').gsub!('}}', '') }
-        # merge everything back together into an array
-        value = Array(value.split(',')) + quotes
-        # remove any blanks that are left
-        value.reject! { |v| v.length.zero? }
-        value = value[0] if value.length == 1
+      if value.is_a?(String)# && value[0..2] != '{{{'
+        # Escaped JSON
+        if value[0..2] == '{{{'
+          value = value.sub('{{', '').sub('}}', '')
+          value = JSON.parse(value)
+        else
+          # Find the quoted strings
+          quotes = value.scan(/{{.*?}}/)
+          # remove them from the rest
+          quotes.each { |q| value.gsub!(q, '') }
+          # remove the quote characters from the quoted strings
+          quotes.each { |q| q.gsub!('{{', '').gsub!('}}', '') }
+          # merge everything back together into an array
+          value = Array(value.split(',')) + quotes
+          # remove any blanks that are left
+          value.reject! { |v| v.length.zero? }
+          value = value[0] if value.length == 1
+        end
       end
       value
     end
