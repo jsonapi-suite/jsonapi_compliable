@@ -11,9 +11,10 @@ module JsonapiCompliable
           end
 
           assign do |parents, children|
+            children_hash = children.group_by(&foreign_key)
             parents.each do |parent|
               parent.association(association_name).loaded!
-              relevant_children = children.select { |c| c.send(foreign_key) == parent.send(primary_key) }
+              relevant_children = children_hash[parent.send(primary_key)] || []
               relevant_children.each do |c|
                 parent.association(association_name).add_to_target(c, :skip_callbacks)
               end
@@ -34,8 +35,9 @@ module JsonapiCompliable
           end
 
           assign do |parents, children|
+            children_hash = children.index_by(&primary_key)
             parents.each do |parent|
-              relevant_child = children.find { |c| parent.send(foreign_key) == c.send(primary_key) }
+              relevant_child = children_hash[parent.send(foreign_key)]
               parent.send(:"#{association_name}=", relevant_child)
             end
           end
@@ -62,10 +64,12 @@ module JsonapiCompliable
           # remove anything else. This is more or less what AR does.
           assign do |parents, children|
             assigned = []
+            children_hash = children.group_by(&foreign_key)
             parents.each do |parent|
               parent.association(association_name).loaded!
-              relevant_child = children.find { |c| c.send(foreign_key) == parent.send(primary_key) }
-              next unless relevant_child
+              relevant_children = children_hash[parent.send(primary_key)]
+              next unless relevant_children
+              relevant_child = relevant_children.first
 
               # Use private methods because of Rails bug
               # https://github.com/rails/rails/issues/32886
@@ -75,9 +79,7 @@ module JsonapiCompliable
               association.send(:target=, relevant_child)
               assigned << relevant_child
             end
-            (children - assigned).each do |unassigned|
-              children.delete(unassigned)
-            end
+            children.replace(assigned)
           end
 
           instance_eval(&blk) if blk
