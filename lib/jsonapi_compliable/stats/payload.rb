@@ -33,7 +33,8 @@ module JsonapiCompliable
             stats[name] = {}
 
             each_calculation(name, calculation) do |calc, function|
-              stats[name][calc] = function.call(@scope, name)
+              args = function.arity == 3 ? [@scope, name, @resource] : [@scope, name]
+              stats[name][calc] = function.call(*args)
             end
           end
         end
