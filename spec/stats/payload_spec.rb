@@ -9,14 +9,19 @@ RSpec.describe JsonapiCompliable::Stats::Payload do
   describe '#generate' do
     subject { instance.generate }
 
-    def stub_stat(attr, calc, result)
-      allow(dsl).to receive(:stat).with(attr, calc) { ->(_,_) { result } }
+    def stub_stat(attr, calc, result, with_resource=false)
+      if with_resource
+        allow(dsl).to receive(:stat).with(attr, calc) { ->(_,_,_) { result } }
+      else
+        allow(dsl).to receive(:stat).with(attr, calc) { ->(_,_) { result } }
+      end
     end
 
     before do
       stub_stat(:attr1, :count, 2)
       stub_stat(:attr1, :average, 1)
       stub_stat(:attr2, :maximum, 3)
+      stub_stat(:attr3, :maximum, 3, true)
     end
 
     it 'generates the correct payload for each requested stat' do
