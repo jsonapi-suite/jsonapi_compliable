@@ -99,7 +99,7 @@ module JsonapiCompliable
             begin
               sideload.resolve(results, @query, namespace)
             ensure
-              ActiveRecord::Base.clear_active_connections!
+              ActiveRecord::Base.clear_active_connections! if defined?(ActiveRecord)
             end
           }
           if concurrent
