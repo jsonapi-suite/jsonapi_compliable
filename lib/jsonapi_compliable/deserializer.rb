@@ -48,14 +48,23 @@ class JsonapiCompliable::Deserializer
   # @param payload [Hash] The incoming payload with symbolized keys
   # @param env [Hash] the Rack env (e.g. +request.env+).
   def initialize(payload, env)
-    @payload = payload
+    @payload = payload || {}
     @payload = @payload[:_jsonapi] if @payload.has_key?(:_jsonapi)
     @env = env
+    validate_content_type
+  end
+
+  # checks Content-Type header and prints a warning if it doesn't seem correct
+  def validate_content_type
+    content_type = @env['CONTENT_TYPE'] || ""
+    if !(content_type.include?("application/json") || content_type.include?("application/vnd.api+json"))
+      print("WARNING - JSONAPI Compliable :: Content-Type header appears to be set to an invalid value: #{content_type}\n")
+    end
   end
 
   # @return [Hash] the raw :data value of the payload
   def data
-    @payload[:data]
+    @payload[:data] || {}
   end
 
   # @return [String] the raw :id value of the payload
