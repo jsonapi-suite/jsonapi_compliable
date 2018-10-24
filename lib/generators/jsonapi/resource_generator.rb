@@ -200,7 +200,7 @@ module Jsonapi
     end
 
     def type
-      model_klass.name.underscore.pluralize
+      model_klass.model_name.plural
     end
   end
 end
