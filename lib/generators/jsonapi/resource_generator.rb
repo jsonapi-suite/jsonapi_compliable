@@ -56,7 +56,7 @@ module Jsonapi
     end
 
     def generate_serializer
-      to = File.join('app/serializers', class_path, "serializable_#{file_name}.rb")
+      to = File.join('app/serializers', class_path, "#{serializable_file_name}.rb")
       template('serializer.rb.erb', to)
     end
 
@@ -185,6 +185,14 @@ module Jsonapi
 
         ns
       end
+    end
+
+    def serializable_file_name
+      "serializable_#{file_name}"
+    end
+
+    def serializable_class_name
+      (class_path + [serializable_file_name]).map!(&:camelize).join("::")
     end
 
     def model_klass

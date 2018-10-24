@@ -3,7 +3,7 @@
 # We use jsonapi-rb, which is similar to active_model_serializers.
 <%- end -%>
 <% module_namespacing do -%>
-class Serializable<%= class_name %> < JSONAPI::Serializable::Resource
+class <%= serializable_class_name %> < JSONAPI::Serializable::Resource
   type :<%= type %>
 
   <%- unless omit_comments? -%>
