@@ -121,37 +121,27 @@ module Jsonapi
 
     def generate_tests
       if actions?('index')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "index_spec.rb"
+        to = File.join "spec/api/v1", url, "index_spec.rb"
         template('index_request_spec.rb.erb', to)
       end
 
       if actions?('show')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "show_spec.rb"
+        to = File.join "spec/api/v1", url, "show_spec.rb"
         template('show_request_spec.rb.erb', to)
       end
 
       if actions?('create')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "create_spec.rb"
+        to = File.join "spec/api/v1", url, "create_spec.rb"
         template('create_request_spec.rb.erb', to)
       end
 
       if actions?('update')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "update_spec.rb"
+        to = File.join "spec/api/v1", url, "update_spec.rb"
         template('update_request_spec.rb.erb', to)
       end
 
       if actions?('destroy')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "destroy_spec.rb"
+        to = File.join "spec/api/v1", url, "destroy_spec.rb"
         template('destroy_request_spec.rb.erb', to)
       end
     end
