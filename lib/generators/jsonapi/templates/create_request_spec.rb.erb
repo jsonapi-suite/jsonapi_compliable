@@ -1,8 +1,8 @@
 require 'rails_helper'
 
-RSpec.describe "<%= type %>#create", type: :request do
+RSpec.describe "<%= url %>#create", type: :request do
   subject(:make_request) do
-    jsonapi_post "/<%= api_namespace %>/v1/<%= type %>", payload
+    jsonapi_post "/<%= api_namespace %>/v1/<%= url %>", payload
   end
 
   describe 'basic create' do

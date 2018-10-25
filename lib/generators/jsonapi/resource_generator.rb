@@ -88,7 +88,7 @@ module Jsonapi
     end
 
     def generate_strong_resource
-      code = "  strong_resource :#{file_name} do\n"
+      code = "  strong_resource :#{singular_table_name} do\n"
       attributes.each do |a|
         type = a.type
         type = :string if type == :text
@@ -106,6 +106,14 @@ module Jsonapi
       code = "      resources :#{type}"
       code << ", only: [#{actions.map { |a| ":#{a}" }.join(', ')}]" if actions.length < 5
       code << "\n"
+
+      unless type == url
+        code = code.gsub("resources :#{type}", "resources :#{file_name.pluralize}")
+        url.split('/')[0..-2].reverse.each do |namespace|
+          code = "      namespace :#{namespace} do\n#{indent(code).chomp}\n      end\n"
+        end
+      end
+
       inject_into_file 'config/routes.rb', after: "scope path: '/v1' do\n" do
         code
       end
@@ -201,6 +209,10 @@ module Jsonapi
 
     def type
       model_klass.model_name.plural
+    end
+
+    def url
+      model_klass.model_name.collection
     end
   end
 end
