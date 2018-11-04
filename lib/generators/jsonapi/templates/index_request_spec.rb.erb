@@ -4,7 +4,7 @@ RSpec.describe "<%= file_name.pluralize %>#index", type: :request do
   let(:params) { {} }
 
   subject(:make_request) do
-    jsonapi_get "/<%= api_namespace %>/v1/<%= file_name.pluralize %>",
+    jsonapi_get "/<%= api_namespace %>/<%= api_version %>/<%= file_name.pluralize %>",
       params: params
   end
 

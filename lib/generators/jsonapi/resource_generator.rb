@@ -14,6 +14,11 @@ module Jsonapi
       default: nil,
       aliases: ['--actions', '-a'],
       desc: 'Array of controller actions to support, e.g. "index show destroy"'
+    class_option :api_version,
+                 type: :string,
+                 default: 'v1',
+                 desc: 'Version for the api'
+
 
     desc "This generator creates a resource file at app/resources, as well as corresponding controller/specs/route/etc"
     def copy_resource_file
@@ -50,6 +55,10 @@ module Jsonapi
       @options['omit-comments']
     end
 
+    def api_version
+      @options['api_version']
+    end
+
     def generate_controller
       to = File.join('app/controllers', class_path, "#{file_name.pluralize}_controller.rb")
       template('controller.rb.erb', to)
@@ -74,7 +83,7 @@ module Jsonapi
     end
 
     def generate_swagger
-      code = "  jsonapi_resource '/v1/#{type}'"
+      code = "  jsonapi_resource '/#{api_version}/#{type}'"
       code << ", only: [#{actions.map { |a| ":#{a}" }.join(', ')}]" if actions.length < 5
       code << "\n"
       inject_into_file 'app/controllers/docs_controller.rb', before: /^end/ do
@@ -106,42 +115,42 @@ module Jsonapi
       code = "      resources :#{type}"
       code << ", only: [#{actions.map { |a| ":#{a}" }.join(', ')}]" if actions.length < 5
       code << "\n"
-      inject_into_file 'config/routes.rb', after: "scope path: '/v1' do\n" do
+      inject_into_file 'config/routes.rb', after: "scope path: '/#{api_version}' do\n" do
         code
       end
     end
 
     def generate_tests
       if actions?('index')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
+        to = File.join "spec/api/#{api_version}/#{file_name.pluralize}",
           class_path,
           "index_spec.rb"
         template('index_request_spec.rb.erb', to)
       end
 
       if actions?('show')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
+        to = File.join "spec/api/#{api_version}/#{file_name.pluralize}",
           class_path,
           "show_spec.rb"
         template('show_request_spec.rb.erb', to)
       end
 
       if actions?('create')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
+        to = File.join "spec/api/#{api_version}/#{file_name.pluralize}",
           class_path,
           "create_spec.rb"
         template('create_request_spec.rb.erb', to)
       end
 
       if actions?('update')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
+        to = File.join "spec/api/#{api_version}/#{file_name.pluralize}",
           class_path,
           "update_spec.rb"
         template('update_request_spec.rb.erb', to)
       end
 
       if actions?('destroy')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
+        to = File.join "spec/api/#{api_version}/#{file_name.pluralize}",
           class_path,
           "destroy_spec.rb"
         template('destroy_request_spec.rb.erb', to)
@@ -178,7 +187,7 @@ module Jsonapi
         if ns.blank?
           ns = prompt \
             header: "What is your API namespace?",
-            description: "This will be used as a route prefix, e.g. if you want the route '/books_api/v1/authors' your namespace would be 'books_api'",
+            description: "This will be used as a route prefix, e.g. if you want the route '/books_api/#{api_version}/authors' your namespace would be 'books_api'",
             default: 'api'
           update_config!('namespace' => ns)
         end
@@ -192,7 +201,7 @@ module Jsonapi
     end
 
     def type
-      model_klass.name.underscore.pluralize
+      class_name.underscore.pluralize
     end
   end
 end
