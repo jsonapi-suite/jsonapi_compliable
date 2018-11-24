@@ -114,7 +114,7 @@ module Jsonapi
         end
       end
 
-      inject_into_file 'config/routes.rb', after: "scope path: '/v1' do\n" do
+      inject_into_file 'config/routes.rb', after: /scope path: (['"])\/v1(['"]) do\n/ do
         code
       end
     end
