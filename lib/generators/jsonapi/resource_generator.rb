@@ -74,7 +74,7 @@ module Jsonapi
     end
 
     def generate_swagger
-      code = "  jsonapi_resource '/v1/#{type}'"
+      code = "  jsonapi_resource '/v1/#{url}'"
       code << ", only: [#{actions.map { |a| ":#{a}" }.join(', ')}]" if actions.length < 5
       code << "\n"
       inject_into_file 'app/controllers/docs_controller.rb', before: /^end/ do
