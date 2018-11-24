@@ -10,9 +10,7 @@ RSpec.describe "<%= url %>#create", type: :request do
       {
         data: {
           type: '<%= type %>',
-          attributes: {
-            # ... your attrs here
-          }
+          attributes: attributes_for(:<%= singular_table_name %>)
         }
       }
     end
@@ -23,7 +21,7 @@ RSpec.describe "<%= url %>#create", type: :request do
       }.to change { <%= model_klass %>.count }.by(1)
       <%= file_name %> = <%= model_klass %>.last
 
-      assert_payload(:<%= file_name %>, <%= file_name %>, json_item)
+      assert_payload(:<%= singular_table_name %>, <%= file_name %>, json_item)
     end
   end
 end

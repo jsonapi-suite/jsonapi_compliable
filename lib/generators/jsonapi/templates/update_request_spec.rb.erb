@@ -13,15 +13,13 @@ RSpec.describe "<%= url %>#update", type: :request do
         data: {
           id: <%= singular_table_name %>.id.to_s,
           type: '<%= type %>',
-          attributes: {
-            # ... your attrs here
-          }
+          attributes: attributes_for(:<%= singular_table_name %>)
         }
       }
     end
 
     # Replace 'xit' with 'it' after adding attributes
-    xit 'updates the resource' do
+    it 'updates the resource' do
       expect {
         make_request
       }.to change { <%= singular_table_name %>.reload.attributes }
