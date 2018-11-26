@@ -4,16 +4,16 @@ module Jsonapi
 
     argument :attributes, type: :array, default: [], banner: "field[:type][:index] field[:type][:index]"
 
-    class_option :'omit-comments',
-      type: :boolean,
-      default: false,
-      aliases: ['--omit-comments', '-c'],
-      desc: 'Generate without documentation comments'
-    class_option :'actions',
-      type: :array,
-      default: nil,
-      aliases: ['--actions', '-a'],
-      desc: 'Array of controller actions to support, e.g. "index show destroy"'
+    class_option :omit_comments,
+                 type: :boolean,
+                 default: false,
+                 aliases: %w[-c],
+                 desc: 'Generate without documentation comments'
+    class_option :actions,
+                 type: :array,
+                 default: nil,
+                 aliases: %w[-a],
+                 desc: 'Array of controller actions to support, e.g. "index show destroy"'
 
     desc "This generator creates a resource file at app/resources, as well as corresponding controller/specs/route/etc"
     def copy_resource_file
