@@ -6,7 +6,7 @@ module Jsonapi
 
     class_option :omit_comments,
                  type: :boolean,
-                 default: false,
+                 default: true,
                  aliases: %w[-c],
                  desc: 'Generate without documentation comments'
     class_option :actions,
