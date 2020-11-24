@@ -209,8 +209,10 @@ module JsonapiCompliable
           key = key.to_sym
 
           if association?(key)
-            k, v = Hash(value).to_a.first
-            hash[key][:filter][k.to_sym] = v
+            symbolized_hash = value.each_with_object({}) do |(k, v), hash|
+              hash[k.to_sym] = v
+            end
+            hash[key][:filter].merge!(symbolized_hash)
           else
             hash[resource.type][:filter][key] = value
           end

@@ -63,6 +63,14 @@ RSpec.describe JsonapiCompliable::Query do
             expect(subject[:authors][:filter]).to eq({ id: 1 })
           end
         end
+
+        context 'with multiple nested filter params' do
+          before { params[:filter][:books][:genre] = 'fiction' }
+
+          it 'applies multiple filters' do
+            expect(subject[:books][:filter]).to eq(title: 'foo', genre: 'fiction')
+          end
+        end
       end
     end
 
