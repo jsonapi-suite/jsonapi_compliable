@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'action_controller/metal/strong_parameters'
 
 RSpec.describe JsonapiCompliable::Query do
   let(:resource_class) do
@@ -67,8 +68,18 @@ RSpec.describe JsonapiCompliable::Query do
         context 'with multiple nested filter params' do
           before { params[:filter][:books][:genre] = 'fiction' }
 
-          it 'applies multiple filters' do
-            expect(subject[:books][:filter]).to eq(title: 'foo', genre: 'fiction')
+          context 'a hash of params' do
+            it 'applies multiple filters' do
+              expect(subject[:books][:filter]).to eq(title: 'foo', genre: 'fiction')
+            end
+          end
+
+          context 'handling ActionController::Parameters' do
+            let(:params) { ActionController::Parameters.new(super()) }
+
+            it 'applies multiple filters' do
+              expect(subject[:books][:filter]).to eq(title: 'foo', genre: 'fiction')
+            end
           end
         end
       end
