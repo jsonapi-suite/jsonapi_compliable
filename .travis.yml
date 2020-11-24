@@ -1,7 +1,8 @@
-sudo: false
 language: ruby
 rvm:
   - 2.3.3
+dist: xenial
+os: linux
 
 script: "bundle exec rake"
 
