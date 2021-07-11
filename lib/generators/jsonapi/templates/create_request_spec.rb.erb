@@ -1,8 +1,8 @@
 require 'rails_helper'
 
-RSpec.describe "<%= type %>#create", type: :request do
+RSpec.describe "<%= url %>#create", type: :request do
   subject(:make_request) do
-    jsonapi_post "/<%= api_namespace %>/v1/<%= type %>", payload
+    jsonapi_post "/<%= api_namespace %>/v1/<%= url %>", payload
   end
 
   describe 'basic create' do
@@ -10,9 +10,7 @@ RSpec.describe "<%= type %>#create", type: :request do
       {
         data: {
           type: '<%= type %>',
-          attributes: {
-            # ... your attrs here
-          }
+          attributes: attributes_for(:<%= singular_table_name %>)
         }
       }
     end
@@ -23,7 +21,7 @@ RSpec.describe "<%= type %>#create", type: :request do
       }.to change { <%= model_klass %>.count }.by(1)
       <%= file_name %> = <%= model_klass %>.last
 
-      assert_payload(:<%= file_name %>, <%= file_name %>, json_item)
+      assert_payload(:<%= singular_table_name %>, <%= file_name %>, json_item)
     end
   end
 end

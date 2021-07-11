@@ -4,16 +4,16 @@ module Jsonapi
 
     argument :attributes, type: :array, default: [], banner: "field[:type][:index] field[:type][:index]"
 
-    class_option :'omit-comments',
-      type: :boolean,
-      default: false,
-      aliases: ['--omit-comments', '-c'],
-      desc: 'Generate without documentation comments'
-    class_option :'actions',
-      type: :array,
-      default: nil,
-      aliases: ['--actions', '-a'],
-      desc: 'Array of controller actions to support, e.g. "index show destroy"'
+    class_option :omit_comments,
+                 type: :boolean,
+                 default: true,
+                 aliases: %w[-c],
+                 desc: 'Generate without documentation comments'
+    class_option :actions,
+                 type: :array,
+                 default: nil,
+                 aliases: %w[-a],
+                 desc: 'Array of controller actions to support, e.g. "index show destroy"'
 
     desc "This generator creates a resource file at app/resources, as well as corresponding controller/specs/route/etc"
     def copy_resource_file
@@ -56,7 +56,7 @@ module Jsonapi
     end
 
     def generate_serializer
-      to = File.join('app/serializers', class_path, "serializable_#{file_name}.rb")
+      to = File.join('app/serializers', class_path, "#{serializable_file_name}.rb")
       template('serializer.rb.erb', to)
     end
 
@@ -74,7 +74,7 @@ module Jsonapi
     end
 
     def generate_swagger
-      code = "  jsonapi_resource '/v1/#{type}'"
+      code = "  jsonapi_resource '/v1/#{url}'"
       code << ", only: [#{actions.map { |a| ":#{a}" }.join(', ')}]" if actions.length < 5
       code << "\n"
       inject_into_file 'app/controllers/docs_controller.rb', before: /^end/ do
@@ -88,7 +88,7 @@ module Jsonapi
     end
 
     def generate_strong_resource
-      code = "  strong_resource :#{file_name} do\n"
+      code = "  strong_resource :#{singular_table_name} do\n"
       attributes.each do |a|
         type = a.type
         type = :string if type == :text
@@ -106,44 +106,42 @@ module Jsonapi
       code = "      resources :#{type}"
       code << ", only: [#{actions.map { |a| ":#{a}" }.join(', ')}]" if actions.length < 5
       code << "\n"
-      inject_into_file 'config/routes.rb', after: "scope path: '/v1' do\n" do
+
+      unless type == url
+        code = code.gsub("resources :#{type}", "resources :#{file_name.pluralize}")
+        url.split('/')[0..-2].reverse.each do |namespace|
+          code = "      namespace :#{namespace} do\n#{indent(code).chomp}\n      end\n"
+        end
+      end
+
+      inject_into_file 'config/routes.rb', after: /scope path: (['"])\/v1(['"]) do\n/ do
         code
       end
     end
 
     def generate_tests
       if actions?('index')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "index_spec.rb"
+        to = File.join "spec/api/v1", url, "index_spec.rb"
         template('index_request_spec.rb.erb', to)
       end
 
       if actions?('show')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "show_spec.rb"
+        to = File.join "spec/api/v1", url, "show_spec.rb"
         template('show_request_spec.rb.erb', to)
       end
 
       if actions?('create')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "create_spec.rb"
+        to = File.join "spec/api/v1", url, "create_spec.rb"
         template('create_request_spec.rb.erb', to)
       end
 
       if actions?('update')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "update_spec.rb"
+        to = File.join "spec/api/v1", url, "update_spec.rb"
         template('update_request_spec.rb.erb', to)
       end
 
       if actions?('destroy')
-        to = File.join "spec/api/v1/#{file_name.pluralize}",
-          class_path,
-          "destroy_spec.rb"
+        to = File.join "spec/api/v1", url, "destroy_spec.rb"
         template('destroy_request_spec.rb.erb', to)
       end
     end
@@ -187,12 +185,24 @@ module Jsonapi
       end
     end
 
+    def serializable_file_name
+      "serializable_#{file_name}"
+    end
+
+    def serializable_class_name
+      (class_path + [serializable_file_name]).map!(&:camelize).join("::")
+    end
+
     def model_klass
       class_name.safe_constantize
     end
 
     def type
-      model_klass.name.underscore.pluralize
+      model_klass.model_name.plural
+    end
+
+    def url
+      model_klass.model_name.collection
     end
   end
 end

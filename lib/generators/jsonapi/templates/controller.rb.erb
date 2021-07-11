@@ -10,7 +10,7 @@ class <%= model_klass.name.pluralize %>Controller < ApplicationController
   # Reference a strong resource payload defined in
   # config/initializers/strong_resources.rb
   <%- end -%>
-  strong_resource :<%= file_name %>
+  strong_resource :<%= singular_table_name %>
   <%- end -%>
   <%- if actions?('create', 'update') -%>
   <%- unless omit_comments? -%>

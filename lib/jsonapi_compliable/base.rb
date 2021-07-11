@@ -84,7 +84,7 @@ module JsonapiCompliable
       #   #
       #   # ...will only sideload comments
       #
-      # @param [Hash, Array, Symbol] whitelist
+      # @param hash [Hash, Array, Symbol]
       # @see Query#include_hash
       def sideload_whitelist(hash)
         self._sideload_whitelist = JSONAPI::IncludeDirective.new(hash).to_hash

@@ -29,7 +29,7 @@
 #
 # For more information, see https://jsonapi-suite.github.io/jsonapi_spec_helpers/
 <%- end -%>
-JsonapiSpecHelpers::Payload.register(:<%= file_name %>) do
+JsonapiSpecHelpers::Payload.register(:<%= singular_table_name %>) do
   <%- attributes.each do |a| -%>
   <%- type = a.type == :boolean ? [TrueClass, FalseClass] : a.type.to_s.classify -%>
   <%- type = String if a.type == :text -%>

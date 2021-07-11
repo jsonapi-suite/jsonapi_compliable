@@ -1,12 +1,12 @@
 require 'rails_helper'
 
-RSpec.describe "<%= type %>#destroy", type: :request do
+RSpec.describe "<%= url %>#destroy", type: :request do
   subject(:make_request) do
-    jsonapi_delete "/<%= api_namespace %>/v1/<%= type %>/#{<%= file_name %>.id}"
+    jsonapi_delete "/<%= api_namespace %>/v1/<%= url %>/#{<%= singular_table_name %>.id}"
   end
 
   describe 'basic destroy' do
-    let!(:<%= file_name %>) { create(:<%= file_name %>) }
+    let!(:<%= singular_table_name %>) { create(:<%= singular_table_name %>) }
 
     it 'updates the resource' do
       expect {
