@@ -226,7 +226,7 @@ module JsonapiCompliable
         sorts.each do |s|
           if s.include?('.')
             type, attr = s.split('.')
-            if type.starts_with?('-')
+            if type.start_with?('-')
               type = type.sub('-', '')
               attr = "-#{attr}"
             end
@@ -254,7 +254,7 @@ module JsonapiCompliable
     end
 
     def sort_attr(attr)
-      value = attr.starts_with?('-') ? :desc : :asc
+      value = attr.start_with?('-') ? :desc : :asc
       key   = attr.sub('-', '').to_sym
 
       { key => value }

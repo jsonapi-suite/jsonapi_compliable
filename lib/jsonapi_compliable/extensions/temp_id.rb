@@ -11,7 +11,7 @@ module JsonapiCompliable
   # reference it directly.
   module SerializableTempId
     # Common interface for jsonapi-rb extensions
-    def as_jsonapi(*)
+    def as_jsonapi(**)
       super.tap do |hash|
         if temp_id = @object.instance_variable_get(:'@_jsonapi_temp_id')
           hash[:'temp-id'] = temp_id

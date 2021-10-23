@@ -2,7 +2,7 @@ require 'spec_helper'
 
 RSpec.describe JsonapiCompliable::Sideload do
   let(:opts)     { {} }
-  let(:instance) { described_class.new(:foo, opts) }
+  let(:instance) { described_class.new(:foo, **opts) }
 
   describe '.new' do
     it 'assigns a resource class' do

@@ -171,7 +171,7 @@ class JsonapiCompliable::Util::Persistence
       relationships: @relationships,
     }.merge(only: only, except: except)
 
-    JsonapiCompliable::Util::RelationshipPayload.iterate(opts) do |x|
+    JsonapiCompliable::Util::RelationshipPayload.iterate(**opts) do |x|
       yield x
     end
   end

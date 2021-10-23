@@ -16,7 +16,7 @@ module JsonapiCompliable
               parent.association(association_name).loaded!
               relevant_children = children_hash[parent.send(primary_key)] || []
               relevant_children.each do |c|
-                parent.association(association_name).add_to_target(c, :skip_callbacks)
+                parent.association(association_name).add_to_target(c, skip_callbacks: true)
               end
             end
           end
@@ -111,7 +111,7 @@ module JsonapiCompliable
               parent.association(association_name).loaded!
               relevant_children = children.select { |c| c.send(through).any? { |ct| ct.send(fk) == parent.send(primary_key) } }
               relevant_children.each do |c|
-                parent.association(association_name).add_to_target(c, :skip_callbacks)
+                parent.association(association_name).add_to_target(c, skip_callbacks: true)
               end
             end
           end
