@@ -108,7 +108,7 @@ module JsonapiCompliable
       # (see Adapters::Abstract#update)
       def update(model_class, update_params)
         instance = model_class.find(update_params.delete(:id))
-        instance.update_attributes(update_params)
+        instance.update(update_params)
         instance
       end
 
@@ -123,7 +123,7 @@ module JsonapiCompliable
 
       def associate_many(parent, child, association_name)
         parent.association(association_name).loaded!
-        parent.association(association_name).add_to_target(child, :skip_callbacks)
+        parent.association(association_name).add_to_target(child, skip_callbacks: true)
       end
     end
   end

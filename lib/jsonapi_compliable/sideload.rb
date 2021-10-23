@@ -311,7 +311,7 @@ module JsonapiCompliable
     # @see #scope
     # @return void
     def allow_sideload(name, opts = {}, &blk)
-      sideload = Sideload.new(name, opts)
+      sideload = Sideload.new(name, **opts)
       sideload.instance_eval(&blk) if blk
 
       if polymorphic?
