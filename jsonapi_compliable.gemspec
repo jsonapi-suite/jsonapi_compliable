@@ -24,6 +24,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "kaminari", '~> 0.17'
   spec.add_development_dependency "bundler", "~> 2.1.4"
   spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "sqlite3"
+  spec.add_development_dependency "sqlite3", ['~> 1.3', '< 1.5']
   spec.add_development_dependency "database_cleaner"
 end
